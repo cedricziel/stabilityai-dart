@@ -1,6 +1,6 @@
 name: stability_ai_dart
 description: A Dart library for interacting with the Stability AI REST API
-version: 0.1.0
+version: 0.0.1
 homepage: https://github.com/cedricziel/stabilityai-dart
 
 environment:

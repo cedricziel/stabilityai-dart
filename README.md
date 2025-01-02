@@ -1,8 +1,37 @@
-# Stability AI Dart
+# Stability AI Dart 🎨
 
 A Dart library for interacting with the Stability AI REST API.
 
-## Features
+## Table of Contents 📑
+
+- [Stability AI Dart 🎨](#stability-ai-dart-)
+  - [Table of Contents 📑](#table-of-contents-)
+  - [Features ✨](#features-)
+  - [Installation 📦](#installation-)
+  - [Usage 🚀](#usage-)
+    - [Initialize the client 🔑](#initialize-the-client-)
+    - [List available engines 🔍](#list-available-engines-)
+    - [Generate images from text ✍️](#generate-images-from-text-️)
+    - [Generate Core Images 🖼️](#generate-core-images-️)
+    - [Available Style Presets 🎨](#available-style-presets-)
+    - [Generate Ultra Images 🌟](#generate-ultra-images-)
+    - [Generate Image Variations 🔄](#generate-image-variations-)
+    - [Remove Image Backgrounds ✂️](#remove-image-backgrounds-️)
+    - [Upscale Images 📐](#upscale-images-)
+      - [Standard Upscaler](#standard-upscaler)
+      - [Using the Convenience Method](#using-the-convenience-method)
+      - [Creative Upscaler](#creative-upscaler)
+      - [Conservative Upscaler](#conservative-upscaler)
+      - [Manual Polling (Standard Upscaler)](#manual-polling-standard-upscaler)
+    - [Error Handling ⚠️](#error-handling-️)
+    - [Available Aspect Ratios 📏](#available-aspect-ratios-)
+    - [Output Formats 💾](#output-formats-)
+    - [Generate Images with SD3 🎯](#generate-images-with-sd3-)
+    - [SD3 Models and Credit Costs 💰](#sd3-models-and-credit-costs-)
+    - [Cleanup 🧹](#cleanup-)
+  - [License 📄](#license-)
+
+## Features ✨
 
 - Text-to-Image Generation
   - Generate images from text prompts
@@ -39,18 +68,18 @@ A Dart library for interacting with the Stability AI REST API.
   - Proper error handling with detailed messages
   - Input validation
 
-## Installation
+## Installation 📦
 
 Add this to your package's `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  stability_ai_dart: ^0.1.0
+  stability_ai_dart: ^0.0.1
 ```
 
-## Usage
+## Usage 🚀
 
-### Initialize the client
+### Initialize the client 🔑
 
 The library uses an interface-based architecture with a factory pattern for creating clients. This allows for better testing and flexibility:
 
@@ -75,7 +104,7 @@ The interface-based design provides several benefits:
 - Flexibility to swap implementations
 - Better dependency injection support
 
-### List available engines
+### List available engines 🔍
 
 ```dart
 final engines = await client.listEngines();
@@ -87,7 +116,7 @@ for (final engine in engines) {
 }
 ```
 
-### Generate images from text
+### Generate images from text ✍️
 
 ```dart
 final request = TextToImageRequest(
@@ -116,7 +145,7 @@ for (final artifact in response.artifacts) {
 }
 ```
 
-### Generate Core Images
+### Generate Core Images 🖼️
 
 ```dart
 final request = CoreImageRequest(
@@ -152,7 +181,7 @@ if (jsonResult is CoreImageResponse) {
 }
 ```
 
-### Available Style Presets
+### Available Style Presets 🎨
 
 The Core Image API supports the following style presets:
 
@@ -174,7 +203,7 @@ The Core Image API supports the following style presets:
 - `pixel-art` - Pixel art style
 - `tile-texture` - Tile texture style
 
-### Generate Ultra Images
+### Generate Ultra Images 🌟
 
 ```dart
 final request = UltraImageRequest(
@@ -209,7 +238,7 @@ if (jsonResult is UltraImageResponse) {
 }
 ```
 
-### Generate Image Variations
+### Generate Image Variations 🔄
 
 ```dart
 final request = UltraImageRequest(
@@ -225,7 +254,7 @@ final result = await client.generateUltraImage(
 );
 ```
 
-### Remove Image Backgrounds
+### Remove Image Backgrounds ✂️
 
 ```dart
 final request = RemoveBackgroundRequest(
@@ -256,7 +285,7 @@ if (jsonResult is RemoveBackgroundResponse) {
 }
 ```
 
-### Upscale Images
+### Upscale Images 📐
 
 There are four upscaling options available:
 
@@ -439,7 +468,7 @@ while (true) {
 }
 ```
 
-### Error Handling
+### Error Handling ⚠️
 
 The library throws `StabilityAiException` when the API returns an error:
 
@@ -456,7 +485,7 @@ try {
 }
 ```
 
-### Available Aspect Ratios
+### Available Aspect Ratios 📏
 
 The Ultra Image API supports the following aspect ratios:
 
@@ -470,7 +499,7 @@ The Ultra Image API supports the following aspect ratios:
 - 9:16 (`AspectRatio.ratio9x16`)
 - 9:21 (`AspectRatio.ratio9x21`)
 
-### Output Formats
+### Output Formats 💾
 
 The following output formats are supported:
 
@@ -478,7 +507,7 @@ The following output formats are supported:
 - PNG (`OutputFormat.png`)
 - WebP (`OutputFormat.webp`)
 
-### Generate Images with SD3
+### Generate Images with SD3 🎯
 
 ```dart
 final request = SD3ImageRequest(
@@ -514,7 +543,7 @@ if (jsonResult is SD3ImageResponse) {
 }
 ```
 
-### SD3 Models and Credit Costs
+### SD3 Models and Credit Costs 💰
 
 The following models are available for SD3 image generation:
 
@@ -534,7 +563,7 @@ The following models are available for SD3 image generation:
 - SD 3.0 Medium (3.5 credits)
   - Balanced SD3 model
 
-### Cleanup
+### Cleanup 🧹
 
 Don't forget to close the client when you're done:
 
@@ -542,6 +571,6 @@ Don't forget to close the client when you're done:
 client.close();
 ```
 
-## License
+## License 📄
 
 MIT License - see the [LICENSE](LICENSE) file for details.
