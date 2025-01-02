@@ -91,7 +91,8 @@ void main() {
         final request = UltraImageRequest(prompt: 'test prompt');
         final response = await client.generateUltraImage(request: request);
 
-        expect(response, expectedBytes);
+        expect(response, isA<UltraImageBytes>());
+        expect((response as UltraImageBytes).bytes, expectedBytes);
       });
 
       test('returns UltraImageResponse when returnJson is true', () async {
@@ -116,9 +117,10 @@ void main() {
         );
 
         expect(response, isA<UltraImageResponse>());
-        expect(response.image, expectedBase64);
-        expect(response.finishReason, FinishReason.success);
-        expect(response.seed, 123);
+        final jsonResponse = response as UltraImageResponse;
+        expect(jsonResponse.image, expectedBase64);
+        expect(jsonResponse.finishReason, FinishReason.success);
+        expect(jsonResponse.seed, 123);
       });
 
       test('includes all optional parameters in request', () async {

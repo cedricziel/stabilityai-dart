@@ -4,6 +4,17 @@ import 'dart:convert';
 
 part 'models.g.dart';
 
+/// Response from the Ultra Image generation API.
+/// Can either contain raw bytes ([UltraImageBytes]) or a JSON response ([UltraImageResponse]).
+sealed class UltraImageResult {}
+
+/// Raw bytes response from the Ultra Image generation API.
+class UltraImageBytes implements UltraImageResult {
+  final Uint8List bytes;
+
+  UltraImageBytes(this.bytes);
+}
+
 /// Converts between [Uint8List] and base64 encoded strings for JSON serialization
 class Uint8ListConverter implements JsonConverter<Uint8List?, String?> {
   const Uint8ListConverter();
@@ -98,7 +109,7 @@ enum OutputFormat {
 
 /// Response from the Stable Image Ultra API when JSON output is requested.
 @JsonSerializable()
-class UltraImageResponse {
+class UltraImageResponse implements UltraImageResult {
   /// The generated image, encoded to base64.
   final String image;
 

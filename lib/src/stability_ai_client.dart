@@ -49,11 +49,12 @@ class StabilityAiClient {
 
   /// Generates an image using the Stable Image Ultra API.
   ///
-  /// If [returnJson] is true, returns an [UltraImageResponse] containing the base64 encoded image
-  /// and metadata. Otherwise returns a [Uint8List] containing the raw image data.
+  /// Returns either an [UltraImageResponse] containing the base64 encoded image and metadata
+  /// when [returnJson] is true, or [UltraImageBytes] containing the raw image data when
+  /// [returnJson] is false.
   ///
   /// The resolution of the generated image will be 1 megapixel. The default resolution is 1024x1024.
-  Future<dynamic> generateUltraImage({
+  Future<UltraImageResult> generateUltraImage({
     required UltraImageRequest request,
     bool returnJson = false,
   }) async {
@@ -104,7 +105,7 @@ class StabilityAiClient {
     if (returnJson) {
       return UltraImageResponse.fromJson(json.decode(response.body));
     } else {
-      return response.bodyBytes;
+      return UltraImageBytes(response.bodyBytes);
     }
   }
 
@@ -131,7 +132,9 @@ class StabilityAiClient {
         final Map<String, dynamic> jsonData = json.decode(response.body);
 
         // If it's in our error format, parse it
-        if (jsonData.containsKey('errors') && jsonData.containsKey('id') && jsonData.containsKey('name')) {
+        if (jsonData.containsKey('errors') &&
+            jsonData.containsKey('id') &&
+            jsonData.containsKey('name')) {
           final error = ErrorResponse.fromJson(jsonData);
           throw StabilityAiException(
             statusCode: response.statusCode,
