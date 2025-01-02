@@ -685,6 +685,108 @@ class StabilityAiClient {
     return upscaleImageConservative(request: request, returnJson: returnJson);
   }
 
+  /// Generates an image using the Stable Diffusion 3.0 & 3.5 API.
+  ///
+  /// Returns either an [SD3ImageResponse] containing the base64 encoded image and metadata
+  /// when [returnJson] is true, or [SD3ImageBytes] containing the raw image data when
+  /// [returnJson] is false.
+  ///
+  /// The resolution of the generated image will be 1 megapixel. The default resolution is 1024x1024.
+  ///
+  /// Example:
+  /// ```dart
+  /// final request = SD3ImageRequest(
+  ///   prompt: 'A lighthouse on a cliff overlooking the ocean',
+  ///   model: SD3Model.sd35Large,
+  ///   aspectRatio: AspectRatio.ratio16x9,
+  /// );
+  /// final result = await client.generateSD3Image(
+  ///   request: request,
+  ///   returnJson: false,
+  /// );
+  /// if (result is SD3ImageBytes) {
+  ///   await File('lighthouse.png').writeAsBytes(result.bytes);
+  /// }
+  /// ```
+  ///
+  /// Note: Credit costs per generation:
+  /// - SD 3.5 & 3.0 Large: 6.5 credits
+  /// - SD 3.5 & 3.0 Large Turbo: 4 credits
+  /// - SD 3.5 & 3.0 Medium: 3.5 credits
+  Future<SD3ImageResult> generateSD3Image({
+    required SD3ImageRequest request,
+    bool returnJson = false,
+  }) async {
+    final uri = Uri.parse('$baseUrl/v2beta/stable-image/generate/sd3');
+    final multipart = http.MultipartRequest('POST', uri);
+
+    // Add headers
+    multipart.headers.addAll(_ultraHeaders(returnJson: returnJson));
+
+    // Add required fields
+    multipart.fields['prompt'] = request.prompt;
+
+    // Add optional fields
+    if (request.negativePrompt != null) {
+      multipart.fields['negative_prompt'] = request.negativePrompt!;
+    }
+    if (request.mode != null) {
+      multipart.fields['mode'] = request.mode!;
+    }
+    if (request.aspectRatio != null) {
+      multipart.fields['aspect_ratio'] =
+          request.aspectRatio.toString().split('.').last;
+    }
+    if (request.model != null) {
+      // Convert enum value to API string format
+      final modelValue = request.model.toString().split('.').last;
+      final modelMap = {
+        'sd35Large': 'sd3.5-large',
+        'sd35LargeTurbo': 'sd3.5-large-turbo',
+        'sd35Medium': 'sd3.5-medium',
+        'sd3Medium': 'sd3-medium',
+        'sd3Large': 'sd3-large',
+        'sd3LargeTurbo': 'sd3-large-turbo',
+      };
+      multipart.fields['model'] = modelMap[modelValue]!;
+    }
+    if (request.seed != null) {
+      multipart.fields['seed'] = request.seed.toString();
+    }
+    if (request.outputFormat != null) {
+      multipart.fields['output_format'] =
+          request.outputFormat.toString().split('.').last;
+    }
+    if (request.cfgScale != null) {
+      multipart.fields['cfg_scale'] = request.cfgScale.toString();
+    }
+    if (request.strength != null) {
+      multipart.fields['strength'] = request.strength.toString();
+    }
+
+    // Add image if provided
+    if (request.image != null) {
+      final imageFile = http.MultipartFile.fromBytes(
+        'image',
+        request.image!,
+        filename: 'image',
+        contentType: MediaType('image', '*'),
+      );
+      multipart.files.add(imageFile);
+    }
+
+    final streamedResponse = await _httpClient.send(multipart);
+    final response = await http.Response.fromStream(streamedResponse);
+
+    _checkResponse(response);
+
+    if (returnJson) {
+      return SD3ImageResponse.fromJson(json.decode(response.body));
+    } else {
+      return SD3ImageBytes(response.bodyBytes);
+    }
+  }
+
   /// Upscales an image using the fast upscaler (4x).
   ///
   /// Our Fast Upscaler service enhances image resolution by 4x using predictive and generative AI.

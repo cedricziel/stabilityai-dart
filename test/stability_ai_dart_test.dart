@@ -1244,5 +1244,153 @@ void main() {
         );
       });
     });
+
+    group('generateSD3Image', () {
+      test('returns binary data when returnJson is false', () async {
+        final expectedBytes = Uint8List.fromList([1, 2, 3]);
+
+        when(mockClient.send(any)).thenAnswer((_) async {
+          return http.StreamedResponse(
+            Stream.value(expectedBytes),
+            200,
+            headers: {'content-type': 'image/png'},
+          );
+        });
+
+        final request = SD3ImageRequest(prompt: 'test prompt');
+        final response = await client.generateSD3Image(request: request);
+
+        expect(response, isA<SD3ImageBytes>());
+        expect((response as SD3ImageBytes).bytes, expectedBytes);
+
+        final captured = verify(mockClient.send(captureAny)).captured.single
+            as http.MultipartRequest;
+        expect(captured.fields['prompt'], 'test prompt');
+      });
+
+      test('returns SD3ImageResponse when returnJson is true', () async {
+        final expectedBase64 = base64.encode([1, 2, 3]);
+
+        when(mockClient.send(any)).thenAnswer((_) async {
+          return http.StreamedResponse(
+            Stream.value(utf8.encode(jsonEncode({
+              'image': expectedBase64,
+              'finish_reason': 'SUCCESS',
+              'seed': 123,
+            }))),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        });
+
+        final request = SD3ImageRequest(prompt: 'test prompt');
+        final response = await client.generateSD3Image(
+          request: request,
+          returnJson: true,
+        );
+
+        expect(response, isA<SD3ImageResponse>());
+        final jsonResponse = response as SD3ImageResponse;
+        expect(jsonResponse.image, expectedBase64);
+        expect(jsonResponse.finishReason, FinishReason.success);
+        expect(jsonResponse.seed, 123);
+      });
+
+      test('includes all optional parameters in request', () async {
+        final imageBytes = Uint8List.fromList([1, 2, 3]);
+        final request = SD3ImageRequest(
+          prompt: 'test prompt',
+          negativePrompt: 'test negative',
+          mode: 'image-to-image',
+          image: imageBytes,
+          strength: 0.5,
+          aspectRatio: AspectRatio.ratio16x9,
+          model: SD3Model.sd35Large,
+          seed: 123,
+          outputFormat: OutputFormat.png,
+          cfgScale: 7.5,
+        );
+
+        when(mockClient.send(any)).thenAnswer((_) async {
+          return http.StreamedResponse(
+            Stream.value(utf8.encode(jsonEncode({
+              'image': 'test-base64',
+              'finish_reason': 'SUCCESS',
+            }))),
+            200,
+          );
+        });
+
+        await client.generateSD3Image(request: request);
+
+        final captured = verify(mockClient.send(captureAny)).captured.single
+            as http.MultipartRequest;
+        expect(captured.fields['prompt'], 'test prompt');
+        expect(captured.fields['negative_prompt'], 'test negative');
+        expect(captured.fields['mode'], 'image-to-image');
+        expect(captured.fields['strength'], '0.5');
+        expect(captured.fields['aspect_ratio'], 'ratio16x9');
+        expect(captured.fields['model'], 'sd3.5-large');
+        expect(captured.fields['seed'], '123');
+        expect(captured.fields['output_format'], 'png');
+        expect(captured.fields['cfg_scale'], '7.5');
+        expect(captured.files.length, 1);
+        expect(captured.files.first.field, 'image');
+      });
+
+      test('throws exception with error details on error response', () async {
+        when(mockClient.send(any)).thenAnswer((_) async {
+          final response = http.StreamedResponse(
+            Stream.value(utf8.encode(jsonEncode({
+              'id': 'error-id',
+              'name': 'bad_request',
+              'errors': ['Invalid prompt', 'Invalid model'],
+            }))),
+            400,
+            headers: {'content-type': 'application/json'},
+          );
+          return response;
+        });
+
+        final request = SD3ImageRequest(prompt: 'test prompt');
+
+        expect(
+          () => client.generateSD3Image(request: request),
+          throwsA(
+            allOf(
+              isA<StabilityAiException>(),
+              predicate((StabilityAiException e) =>
+                  e.statusCode == 400 &&
+                  e.message == 'Invalid prompt, Invalid model' &&
+                  e.id == 'error-id' &&
+                  e.name == 'bad_request'),
+            ),
+          ),
+        );
+      });
+
+      test('uses correct endpoint URL', () async {
+        final request = SD3ImageRequest(prompt: 'test prompt');
+
+        when(mockClient.send(any)).thenAnswer((_) async {
+          return http.StreamedResponse(
+            Stream.value(utf8.encode(jsonEncode({
+              'image': 'test-base64',
+              'finish_reason': 'SUCCESS',
+            }))),
+            200,
+          );
+        });
+
+        await client.generateSD3Image(request: request);
+
+        final captured = verify(mockClient.send(captureAny)).captured.single
+            as http.MultipartRequest;
+        expect(
+          captured.url.toString(),
+          'https://api.stability.ai/v2beta/stable-image/generate/sd3',
+        );
+      });
+    });
   });
 }

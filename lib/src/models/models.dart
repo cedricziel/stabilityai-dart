@@ -97,6 +97,22 @@ enum FinishReason {
   contentFiltered,
 }
 
+/// The SD3 model to use for generation.
+enum SD3Model {
+  @JsonValue('sd3.5-large')
+  sd35Large,
+  @JsonValue('sd3.5-large-turbo')
+  sd35LargeTurbo,
+  @JsonValue('sd3.5-medium')
+  sd35Medium,
+  @JsonValue('sd3-medium')
+  sd3Medium,
+  @JsonValue('sd3-large')
+  sd3Large,
+  @JsonValue('sd3-large-turbo')
+  sd3LargeTurbo,
+}
+
 /// The style preset to use for generation.
 enum StylePreset {
   @JsonValue('enhance')
@@ -641,4 +657,113 @@ class UpscaleResultResponse implements UpscaleResult {
   factory UpscaleResultResponse.fromJson(Map<String, dynamic> json) =>
       _$UpscaleResultResponseFromJson(json);
   Map<String, dynamic> toJson() => _$UpscaleResultResponseToJson(this);
+}
+
+/// Response from the SD3 Image generation API.
+/// Can either contain raw bytes ([SD3ImageBytes]) or a JSON response ([SD3ImageResponse]).
+sealed class SD3ImageResult {}
+
+/// Raw bytes response from the SD3 Image generation API.
+class SD3ImageBytes implements SD3ImageResult {
+  final Uint8List bytes;
+
+  SD3ImageBytes(this.bytes);
+}
+
+/// JSON response from the SD3 Image generation API.
+@JsonSerializable()
+class SD3ImageResponse implements SD3ImageResult {
+  /// The generated image, encoded to base64.
+  final String image;
+
+  /// The reason the generation finished.
+  @JsonKey(name: 'finish_reason')
+  final FinishReason finishReason;
+
+  /// The seed used as random noise for this generation.
+  final int? seed;
+
+  SD3ImageResponse({
+    required this.image,
+    required this.finishReason,
+    this.seed,
+  });
+
+  factory SD3ImageResponse.fromJson(Map<String, dynamic> json) =>
+      _$SD3ImageResponseFromJson(json);
+  Map<String, dynamic> toJson() => _$SD3ImageResponseToJson(this);
+}
+
+/// Request parameters for the SD3 Image generation API.
+@JsonSerializable()
+class SD3ImageRequest {
+  /// What you wish to see in the output image.
+  final String prompt;
+
+  /// Keywords of what you do not wish to see in the output image.
+  @JsonKey(name: 'negative_prompt')
+  final String? negativePrompt;
+
+  /// The mode of generation (text-to-image or image-to-image).
+  final String? mode;
+
+  /// The image to use as the starting point for the generation.
+  @Uint8ListConverter()
+  final Uint8List? image;
+
+  /// Controls how much influence the image parameter has on the output image.
+  final double? strength;
+
+  /// The aspect ratio of the output image.
+  @JsonKey(name: 'aspect_ratio')
+  final AspectRatio? aspectRatio;
+
+  /// The model to use for generation.
+  final SD3Model? model;
+
+  /// The randomness seed to use for generation.
+  final int? seed;
+
+  /// The format of the output image.
+  @JsonKey(name: 'output_format')
+  final OutputFormat? outputFormat;
+
+  /// How strictly the diffusion process adheres to the prompt text.
+  @JsonKey(name: 'cfg_scale')
+  final double? cfgScale;
+
+  SD3ImageRequest({
+    required this.prompt,
+    this.negativePrompt,
+    this.mode = 'text-to-image',
+    this.image,
+    this.strength,
+    this.aspectRatio,
+    this.model = SD3Model.sd35Large,
+    this.seed,
+    this.outputFormat = OutputFormat.png,
+    this.cfgScale,
+  }) {
+    if (mode == 'image-to-image') {
+      if (image == null) {
+        throw ArgumentError('image is required for image-to-image mode');
+      }
+      if (strength == null) {
+        throw ArgumentError('strength is required for image-to-image mode');
+      }
+    }
+    if (strength != null && (strength! < 0 || strength! > 1)) {
+      throw ArgumentError('strength must be between 0 and 1');
+    }
+    if (seed != null && (seed! < 0 || seed! > 4294967294)) {
+      throw ArgumentError('seed must be between 0 and 4294967294');
+    }
+    if (cfgScale != null && (cfgScale! < 1 || cfgScale! > 10)) {
+      throw ArgumentError('cfg_scale must be between 1 and 10');
+    }
+  }
+
+  factory SD3ImageRequest.fromJson(Map<String, dynamic> json) =>
+      _$SD3ImageRequestFromJson(json);
+  Map<String, dynamic> toJson() => _$SD3ImageRequestToJson(this);
 }
