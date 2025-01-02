@@ -49,8 +49,10 @@ class StabilityAiClient {
 
   /// Generates an image using the Stable Image Ultra API.
   ///
-  /// Returns either a [Uint8List] containing the raw image data or a base64 encoded
-  /// string depending on the [returnJson] parameter.
+  /// If [returnJson] is true, returns an [UltraImageResponse] containing the base64 encoded image
+  /// and metadata. Otherwise returns a [Uint8List] containing the raw image data.
+  ///
+  /// The resolution of the generated image will be 1 megapixel. The default resolution is 1024x1024.
   Future<dynamic> generateUltraImage({
     required UltraImageRequest request,
     bool returnJson = false,
@@ -100,8 +102,7 @@ class StabilityAiClient {
     _checkResponse(response);
 
     if (returnJson) {
-      final Map<String, dynamic> data = json.decode(response.body);
-      return data['base64'];
+      return UltraImageResponse.fromJson(json.decode(response.body));
     } else {
       return response.bodyBytes;
     }
@@ -125,33 +126,72 @@ class StabilityAiClient {
 
   void _checkResponse(http.Response response) {
     if (response.statusCode >= 400) {
-      throw StabilityAiException(
-        statusCode: response.statusCode,
-        message: _parseErrorMessage(response.body),
-      );
-    }
-  }
+      try {
+        // Try to parse the response body as JSON
+        final Map<String, dynamic> jsonData = json.decode(response.body);
 
-  String _parseErrorMessage(String body) {
-    try {
-      final Map<String, dynamic> error = json.decode(body);
-      return error['message'] ?? 'Unknown error occurred';
-    } catch (_) {
-      return body;
+        // If it's in our error format, parse it
+        if (jsonData.containsKey('errors') && jsonData.containsKey('id') && jsonData.containsKey('name')) {
+          final error = ErrorResponse.fromJson(jsonData);
+          throw StabilityAiException(
+            statusCode: response.statusCode,
+            message: error.errors.join(', '),
+            id: error.id,
+            name: error.name,
+          );
+        }
+
+        // If it has a message field, use that
+        if (jsonData.containsKey('message')) {
+          throw StabilityAiException(
+            statusCode: response.statusCode,
+            message: jsonData['message'] as String,
+          );
+        }
+
+        // Otherwise use the raw body
+        throw StabilityAiException(
+          statusCode: response.statusCode,
+          message: response.body,
+        );
+      } on FormatException {
+        // If JSON parsing fails, use raw body
+        throw StabilityAiException(
+          statusCode: response.statusCode,
+          message: response.body,
+        );
+      }
     }
   }
 }
 
 /// Exception thrown when the API returns an error.
 class StabilityAiException implements Exception {
+  /// The HTTP status code of the error.
   final int statusCode;
+
+  /// The error message.
   final String message;
+
+  /// A unique identifier associated with this error.
+  final String? id;
+
+  /// Short-hand name for the error.
+  final String? name;
 
   StabilityAiException({
     required this.statusCode,
     required this.message,
+    this.id,
+    this.name,
   });
 
   @override
-  String toString() => 'StabilityAiException: $statusCode - $message';
+  String toString() {
+    final buffer = StringBuffer('StabilityAiException: $statusCode');
+    if (name != null) buffer.write(' ($name)');
+    buffer.write(' - $message');
+    if (id != null) buffer.write(' [ID: $id]');
+    return buffer.toString();
+  }
 }

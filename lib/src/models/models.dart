@@ -78,6 +78,14 @@ enum AspectRatio {
   ratio9x21,
 }
 
+/// The reason why the generation finished.
+enum FinishReason {
+  @JsonValue('SUCCESS')
+  success,
+  @JsonValue('CONTENT_FILTERED')
+  contentFiltered,
+}
+
 /// The output format of the generated image.
 enum OutputFormat {
   @JsonValue('jpeg')
@@ -86,6 +94,53 @@ enum OutputFormat {
   png,
   @JsonValue('webp')
   webp,
+}
+
+/// Response from the Stable Image Ultra API when JSON output is requested.
+@JsonSerializable()
+class UltraImageResponse {
+  /// The generated image, encoded to base64.
+  final String image;
+
+  /// The reason the generation finished.
+  @JsonKey(name: 'finish_reason')
+  final FinishReason finishReason;
+
+  /// The seed used as random noise for this generation.
+  final int? seed;
+
+  UltraImageResponse({
+    required this.image,
+    required this.finishReason,
+    this.seed,
+  });
+
+  factory UltraImageResponse.fromJson(Map<String, dynamic> json) =>
+      _$UltraImageResponseFromJson(json);
+  Map<String, dynamic> toJson() => _$UltraImageResponseToJson(this);
+}
+
+/// Error response from the API.
+@JsonSerializable()
+class ErrorResponse {
+  /// A unique identifier associated with this error.
+  final String id;
+
+  /// Short-hand name for the error.
+  final String name;
+
+  /// One or more error messages indicating what went wrong.
+  final List<String> errors;
+
+  ErrorResponse({
+    required this.id,
+    required this.name,
+    required this.errors,
+  });
+
+  factory ErrorResponse.fromJson(Map<String, dynamic> json) =>
+      _$ErrorResponseFromJson(json);
+  Map<String, dynamic> toJson() => _$ErrorResponseToJson(this);
 }
 
 /// Request parameters for the Stable Image Ultra API.

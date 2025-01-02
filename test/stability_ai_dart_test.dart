@@ -94,12 +94,16 @@ void main() {
         expect(response, expectedBytes);
       });
 
-      test('returns base64 when returnJson is true', () async {
+      test('returns UltraImageResponse when returnJson is true', () async {
         final expectedBase64 = base64.encode([1, 2, 3]);
 
         when(mockClient.send(any)).thenAnswer((_) async {
           return http.StreamedResponse(
-            Stream.value(utf8.encode(jsonEncode({'base64': expectedBase64}))),
+            Stream.value(utf8.encode(jsonEncode({
+              'image': expectedBase64,
+              'finish_reason': 'SUCCESS',
+              'seed': 123,
+            }))),
             200,
             headers: {'content-type': 'application/json'},
           );
@@ -111,7 +115,10 @@ void main() {
           returnJson: true,
         );
 
-        expect(response, expectedBase64);
+        expect(response, isA<UltraImageResponse>());
+        expect(response.image, expectedBase64);
+        expect(response.finishReason, FinishReason.success);
+        expect(response.seed, 123);
       });
 
       test('includes all optional parameters in request', () async {
@@ -147,23 +154,34 @@ void main() {
         expect(captured.files.first.field, 'image');
       });
 
-      test('throws exception on error response', () async {
+      test('throws exception with error details on error response', () async {
         when(mockClient.send(any)).thenAnswer((_) async {
-          return http.StreamedResponse(
+          final response = http.StreamedResponse(
             Stream.value(utf8.encode(jsonEncode({
-              'message': 'Invalid request',
+              'id': 'error-id',
+              'name': 'bad_request',
+              'errors': ['Invalid prompt', 'Invalid size'],
             }))),
             400,
+            headers: {'content-type': 'application/json'},
           );
+          return response;
         });
 
         final request = UltraImageRequest(prompt: 'test prompt');
 
         expect(
           () => client.generateUltraImage(request: request),
-          throwsA(isA<StabilityAiException>()
-              .having((e) => e.statusCode, 'statusCode', 400)
-              .having((e) => e.message, 'message', 'Invalid request')),
+          throwsA(
+            allOf(
+              isA<StabilityAiException>(),
+              predicate((StabilityAiException e) =>
+                  e.statusCode == 400 &&
+                  e.message == 'Invalid prompt, Invalid size' &&
+                  e.id == 'error-id' &&
+                  e.name == 'bad_request'),
+            ),
+          ),
         );
       });
     });
