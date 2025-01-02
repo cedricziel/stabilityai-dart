@@ -15,8 +15,22 @@ on:
 # Publish using the reusable workflow from dart-lang.
 jobs:
   publish:
+    name: 'Publish to pub.dev'
     permissions:
-      id-token: write # Required for authentication using OIDC
-    uses: dart-lang/setup-dart/.github/workflows/publish.yml@v1
-    # with:
-    #   working-directory: path/to/package/within/repository
+      id-token: write # This is required for requesting the JWT
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout repository
+      - uses: actions/checkout@v4
+      # Setup Dart SDK with JWT token
+      - uses: dart-lang/setup-dart@0a8a0fc875eb934c15d08629302413c671d3f672
+      # Minimal package setup and dry run checks.
+      - name: Install dependencies
+        run: dart pub get
+      - name: Run build_runner
+        run: dart run build_runner build
+      - name: Publish - dry run
+        run: dart pub publish --dry-run
+      # Publishing...
+      - name: Publish to pub.dev
+        run: dart pub publish -f
