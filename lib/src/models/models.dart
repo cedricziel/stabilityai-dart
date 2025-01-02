@@ -353,3 +353,64 @@ class Artifact {
       _$ArtifactFromJson(json);
   Map<String, dynamic> toJson() => _$ArtifactToJson(this);
 }
+
+/// Request parameters for the upscale API.
+@JsonSerializable()
+class UpscaleRequest {
+  /// The image to upscale.
+  @JsonKey(fromJson: _uint8ListFromJson, toJson: _uint8ListToJson)
+  final Uint8List image;
+
+  /// What you wish to see in the output image.
+  final String prompt;
+
+  /// Keywords of what you do not wish to see in the output image.
+  final String? negativePrompt;
+
+  /// The format of the output image.
+  final OutputFormat? outputFormat;
+
+  /// The randomness seed to use for generation.
+  final int? seed;
+
+  /// Indicates how creative the model should be when upscaling an image.
+  final double? creativity;
+
+  static Uint8List _uint8ListFromJson(String json) => base64.decode(json);
+  static String _uint8ListToJson(Uint8List bytes) => base64.encode(bytes);
+
+  UpscaleRequest({
+    required this.image,
+    required this.prompt,
+    this.negativePrompt,
+    this.outputFormat,
+    this.seed,
+    this.creativity,
+  }) {
+    if (seed != null && (seed! < 0 || seed! > 4294967294)) {
+      throw ArgumentError('seed must be between 0 and 4294967294');
+    }
+    if (creativity != null && (creativity! < 0 || creativity! > 0.35)) {
+      throw ArgumentError('creativity must be between 0 and 0.35');
+    }
+  }
+
+  factory UpscaleRequest.fromJson(Map<String, dynamic> json) =>
+      _$UpscaleRequestFromJson(json);
+  Map<String, dynamic> toJson() => _$UpscaleRequestToJson(this);
+}
+
+/// Response from the upscale API.
+@JsonSerializable()
+class UpscaleResponse {
+  /// The unique identifier for this generation.
+  final String id;
+
+  UpscaleResponse({
+    required this.id,
+  });
+
+  factory UpscaleResponse.fromJson(Map<String, dynamic> json) =>
+      _$UpscaleResponseFromJson(json);
+  Map<String, dynamic> toJson() => _$UpscaleResponseToJson(this);
+}

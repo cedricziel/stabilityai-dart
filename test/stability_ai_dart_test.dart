@@ -282,5 +282,106 @@ void main() {
         );
       });
     });
+
+    group('upscaleImage', () {
+      test('returns upscale response with generation ID', () async {
+        final imageBytes = Uint8List.fromList([1, 2, 3]);
+        final expectedId = 'test-generation-id';
+
+        when(mockClient.send(any)).thenAnswer((_) async {
+          return http.StreamedResponse(
+            Stream.value(utf8.encode(jsonEncode({
+              'id': expectedId,
+            }))),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        });
+
+        final request = UpscaleRequest(
+          image: imageBytes,
+          prompt: 'test prompt',
+        );
+        final response = await client.upscaleImage(request: request);
+
+        expect(response, isA<UpscaleResponse>());
+        expect(response.id, expectedId);
+
+        final captured = verify(mockClient.send(captureAny)).captured.single
+            as http.MultipartRequest;
+        expect(captured.files.length, 1);
+        expect(captured.files.first.field, 'image');
+        expect(captured.fields['prompt'], 'test prompt');
+      });
+
+      test('includes all optional parameters in request', () async {
+        final imageBytes = Uint8List.fromList([1, 2, 3]);
+        final request = UpscaleRequest(
+          image: imageBytes,
+          prompt: 'test prompt',
+          negativePrompt: 'test negative',
+          outputFormat: OutputFormat.png,
+          seed: 123,
+          creativity: 0.3,
+        );
+
+        when(mockClient.send(any)).thenAnswer((_) async {
+          return http.StreamedResponse(
+            Stream.value(utf8.encode(jsonEncode({
+              'id': 'test-id',
+            }))),
+            200,
+          );
+        });
+
+        await client.upscaleImage(request: request);
+
+        final captured = verify(mockClient.send(captureAny)).captured.single
+            as http.MultipartRequest;
+        expect(captured.fields['prompt'], 'test prompt');
+        expect(captured.fields['negative_prompt'], 'test negative');
+        expect(captured.fields['output_format'], 'png');
+        expect(captured.fields['seed'], '123');
+        expect(captured.fields['creativity'], '0.3');
+        expect(captured.files.length, 1);
+        expect(captured.files.first.field, 'image');
+      });
+
+      test('throws exception with error details on error response', () async {
+        final imageBytes = Uint8List.fromList([1, 2, 3]);
+
+        when(mockClient.send(any)).thenAnswer((_) async {
+          final response = http.StreamedResponse(
+            Stream.value(utf8.encode(jsonEncode({
+              'id': 'error-id',
+              'name': 'bad_request',
+              'errors': ['Invalid image size', 'Invalid prompt'],
+            }))),
+            400,
+            headers: {'content-type': 'application/json'},
+          );
+          return response;
+        });
+
+        final request = UpscaleRequest(
+          image: imageBytes,
+          prompt: 'test prompt',
+        );
+
+        expect(
+          () => client.upscaleImage(request: request),
+          throwsA(
+            allOf(
+              isA<StabilityAiException>(),
+              predicate((StabilityAiException e) =>
+                  e.statusCode == 400 &&
+                  e.message == 'Invalid image size, Invalid prompt' &&
+                  e.id == 'error-id' &&
+                  e.name == 'bad_request'),
+            ),
+          ),
+        );
+      });
+    });
   });
 }

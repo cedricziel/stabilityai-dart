@@ -16,6 +16,11 @@ A Dart library for interacting with the Stability AI REST API.
 - Background Removal
   - Remove backgrounds from images
   - Support for multiple output formats
+- Image Upscaling
+  - Upscale images up to 4K resolution
+  - 20-40x size increase while preserving quality
+  - Creative enhancement options
+  - Support for multiple output formats
 - Engine Management
   - List available engines
   - Engine details including type and status
@@ -168,6 +173,27 @@ if (jsonResult is RemoveBackgroundResponse) {
 }
 ```
 
+### Upscale Images
+
+```dart
+final request = UpscaleRequest(
+  image: imageBytes, // Uint8List of image (64x64 to 1 megapixel)
+  prompt: 'A high resolution landscape photo',
+  negativePrompt: 'blur, noise', // optional: what not to include
+  outputFormat: OutputFormat.png,
+  seed: 123, // optional: for reproducible results
+  creativity: 0.3, // optional: control creative enhancement (0.0 to 0.35)
+);
+
+final response = await client.upscaleImage(request: request);
+
+// The response contains a generation ID that can be used to fetch the result
+print('Generation ID: ${response.id}');
+
+// Use this ID to fetch the result from the upscale/result/{id} endpoint
+// Note: Rate-limiting may occur if polling more than once every 10 seconds
+```
+
 ### Error Handling
 
 The library throws `StabilityAiException` when the API returns an error:
@@ -188,6 +214,7 @@ try {
 ### Available Aspect Ratios
 
 The Ultra Image API supports the following aspect ratios:
+
 - 16:9 (`AspectRatio.ratio16x9`)
 - 1:1 (`AspectRatio.ratio1x1`)
 - 21:9 (`AspectRatio.ratio21x9`)
@@ -201,6 +228,7 @@ The Ultra Image API supports the following aspect ratios:
 ### Output Formats
 
 The following output formats are supported:
+
 - JPEG (`OutputFormat.jpeg`)
 - PNG (`OutputFormat.png`)
 - WebP (`OutputFormat.webp`)

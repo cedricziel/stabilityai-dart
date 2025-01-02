@@ -4,7 +4,55 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'models/models.dart';
 
-/// The main client for interacting with the Stability AI REST API.
+/// A client for interacting with the Stability AI REST API.
+///
+/// This client provides access to Stability AI's image generation and manipulation APIs:
+///
+/// Text-to-Image Generation:
+/// ```dart
+/// final request = TextToImageRequest(
+///   textPrompts: [TextPrompt(text: 'A serene landscape at sunset')],
+/// );
+/// final response = await client.generateImage(
+///   engineId: 'stable-diffusion-v1-5',
+///   request: request,
+/// );
+/// ```
+///
+/// Ultra Image Generation:
+/// ```dart
+/// final request = UltraImageRequest(
+///   prompt: 'A futuristic cityscape',
+///   aspectRatio: AspectRatio.ratio16x9,
+/// );
+/// final response = await client.generateUltraImage(request: request);
+/// ```
+///
+/// Background Removal:
+/// ```dart
+/// final request = RemoveBackgroundRequest(
+///   image: imageBytes,
+///   outputFormat: OutputFormat.png,
+/// );
+/// final response = await client.removeBackground(request: request);
+/// ```
+///
+/// Image Upscaling:
+/// ```dart
+/// final request = UpscaleRequest(
+///   image: imageBytes,
+///   prompt: 'High resolution landscape photo',
+/// );
+/// final response = await client.upscaleImage(request: request);
+/// ```
+///
+/// The client handles:
+/// - Authentication via API key
+/// - Request formatting and validation
+/// - Response parsing and error handling
+/// - File uploads for image-based operations
+///
+/// Remember to call [close] when you're done with the client to free up resources.
 class StabilityAiClient {
   final String apiKey;
   final String baseUrl;
@@ -151,7 +199,80 @@ class StabilityAiClient {
     }
   }
 
-  /// Closes the client and frees up resources.
+  /// Upscales an image to a higher resolution (up to 4K).
+  ///
+  /// Takes images between 64x64 and 1 megapixel and upscales them while preserving
+  /// and often enhancing quality. The upscaling process can increase the image size
+  /// by 20-40 times.
+  ///
+  /// The [request] must include:
+  /// - An image file between 64x64 and 1 megapixel in size
+  /// - A prompt describing what you wish to see in the output image
+  ///
+  /// Optional parameters in the request:
+  /// - [negativePrompt]: Keywords of what you do not wish to see
+  /// - [outputFormat]: Desired format of the output image (jpeg, png, or webp)
+  /// - [seed]: Specific value to guide the randomness (0-4294967294)
+  /// - [creativity]: Controls how creative the model should be (0-0.35)
+  ///
+  /// Returns an [UpscaleResponse] containing a generation ID that can be used to
+  /// fetch the result from the upscale/result/{id} endpoint.
+  ///
+  /// Example:
+  /// ```dart
+  /// final request = UpscaleRequest(
+  ///   image: imageBytes,
+  ///   prompt: 'A cute fluffy white kitten floating in space, pastel colors',
+  ///   outputFormat: OutputFormat.webp,
+  /// );
+  /// final response = await client.upscaleImage(request: request);
+  /// print('Generation ID: ${response.id}');
+  /// ```
+  ///
+  /// Note: This endpoint has a flat rate of 25 cents per generation.
+  Future<UpscaleResponse> upscaleImage({
+    required UpscaleRequest request,
+  }) async {
+    final uri = Uri.parse('$baseUrl/v2alpha/generation/stable-image/upscale');
+    final multipart = http.MultipartRequest('POST', uri);
+
+    // Add headers
+    multipart.headers.addAll(_headers);
+
+    // Add image file
+    final imageFile = http.MultipartFile.fromBytes(
+      'image',
+      request.image,
+      filename: 'image',
+      contentType: MediaType('image', '*'),
+    );
+    multipart.files.add(imageFile);
+
+    // Add required prompt
+    multipart.fields['prompt'] = request.prompt;
+
+    // Add optional fields
+    if (request.negativePrompt != null) {
+      multipart.fields['negative_prompt'] = request.negativePrompt!;
+    }
+    if (request.outputFormat != null) {
+      multipart.fields['output_format'] =
+          request.outputFormat.toString().split('.').last;
+    }
+    if (request.seed != null) {
+      multipart.fields['seed'] = request.seed.toString();
+    }
+    if (request.creativity != null) {
+      multipart.fields['creativity'] = request.creativity.toString();
+    }
+
+    final streamedResponse = await _httpClient.send(multipart);
+    final response = await http.Response.fromStream(streamedResponse);
+
+    _checkResponse(response);
+    return UpscaleResponse.fromJson(json.decode(response.body));
+  }
+
   void close() {
     _httpClient.close();
   }
