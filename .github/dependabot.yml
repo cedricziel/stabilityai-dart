@@ -1,5 +1,18 @@
 version: 2
 updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 10
+    assignees:
+      - "cedricziel"
+    reviewers:
+      - "cedricziel"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+
   - package-ecosystem: "pub"
     directory: "/"
     schedule:
