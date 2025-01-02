@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/cedricziel/stabilityai-dart/compare/v1.0.0...v1.0.1) (2025-01-02)
+
+
+### Bug Fixes
+
+* include generated, include generation ([f01cfd3](https://github.com/cedricziel/stabilityai-dart/commit/f01cfd31ef35446e425415f7065c790bb11bc599))
+
 ## 1.0.0 (2025-01-02)
 
 
