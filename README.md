@@ -8,6 +8,11 @@ A Dart library for interacting with the Stability AI REST API.
   - Generate images from text prompts
   - Control image dimensions, samples, and steps
   - Adjust configuration scale and seed
+- Core Image Generation
+  - Primary text-to-image generation service
+  - Multiple style presets (photographic, anime, digital art, etc.)
+  - Support for aspect ratio control
+  - Multiple output formats (JPEG, PNG, WebP)
 - Ultra Image Generation
   - Higher quality image generation
   - Support for aspect ratio control
@@ -90,6 +95,64 @@ for (final artifact in response.artifacts) {
   print('MIME type: ${artifact.mimeType}');
 }
 ```
+
+### Generate Core Images
+
+```dart
+final request = CoreImageRequest(
+  prompt: 'A lighthouse on a cliff overlooking the ocean',
+  negativePrompt: 'blur, haze, fog', // optional: what not to include
+  aspectRatio: AspectRatio.ratio16x9,
+  outputFormat: OutputFormat.png,
+  seed: 123, // optional: for reproducible results
+  stylePreset: StylePreset.photographic, // optional: guide the image style
+);
+
+// Get raw bytes
+final result = await client.generateCoreImage(
+  request: request,
+  returnJson: false,
+);
+
+if (result is CoreImageBytes) {
+  // Use the raw bytes
+  await File('lighthouse.png').writeAsBytes(result.bytes);
+}
+
+// Or get JSON response with base64 and metadata
+final jsonResult = await client.generateCoreImage(
+  request: request,
+  returnJson: true,
+);
+
+if (jsonResult is CoreImageResponse) {
+  print('Generated image: ${jsonResult.image}');
+  print('Finish reason: ${jsonResult.finishReason}');
+  print('Seed used: ${jsonResult.seed}');
+}
+```
+
+### Available Style Presets
+
+The Core Image API supports the following style presets:
+
+- `enhance` - General enhancement
+- `anime` - Anime style
+- `photographic` - Photographic style
+- `digital-art` - Digital art style
+- `comic-book` - Comic book style
+- `fantasy-art` - Fantasy art style
+- `line-art` - Line art style
+- `analog-film` - Analog film style
+- `neon-punk` - Neon punk style
+- `isometric` - Isometric style
+- `low-poly` - Low poly style
+- `origami` - Origami style
+- `modeling-compound` - Modeling compound style
+- `cinematic` - Cinematic style
+- `3d-model` - 3D model style
+- `pixel-art` - Pixel art style
+- `tile-texture` - Tile texture style
 
 ### Generate Ultra Images
 

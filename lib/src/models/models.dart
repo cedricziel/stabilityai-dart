@@ -97,6 +97,44 @@ enum FinishReason {
   contentFiltered,
 }
 
+/// The style preset to use for generation.
+enum StylePreset {
+  @JsonValue('enhance')
+  enhance,
+  @JsonValue('anime')
+  anime,
+  @JsonValue('photographic')
+  photographic,
+  @JsonValue('digital-art')
+  digitalArt,
+  @JsonValue('comic-book')
+  comicBook,
+  @JsonValue('fantasy-art')
+  fantasyArt,
+  @JsonValue('line-art')
+  lineArt,
+  @JsonValue('analog-film')
+  analogFilm,
+  @JsonValue('neon-punk')
+  neonPunk,
+  @JsonValue('isometric')
+  isometric,
+  @JsonValue('low-poly')
+  lowPoly,
+  @JsonValue('origami')
+  origami,
+  @JsonValue('modeling-compound')
+  modelingCompound,
+  @JsonValue('cinematic')
+  cinematic,
+  @JsonValue('3d-model')
+  threeDModel,
+  @JsonValue('pixel-art')
+  pixelArt,
+  @JsonValue('tile-texture')
+  tileTexture,
+}
+
 /// The output format of the generated image.
 enum OutputFormat {
   @JsonValue('jpeg')
@@ -490,6 +528,84 @@ class FastUpscaleRequest {
   factory FastUpscaleRequest.fromJson(Map<String, dynamic> json) =>
       _$FastUpscaleRequestFromJson(json);
   Map<String, dynamic> toJson() => _$FastUpscaleRequestToJson(this);
+}
+
+/// Response from the Core Image generation API.
+/// Can either contain raw bytes ([CoreImageBytes]) or a JSON response ([CoreImageResponse]).
+sealed class CoreImageResult {}
+
+/// Raw bytes response from the Core Image generation API.
+class CoreImageBytes implements CoreImageResult {
+  final Uint8List bytes;
+
+  CoreImageBytes(this.bytes);
+}
+
+/// JSON response from the Core Image generation API.
+@JsonSerializable()
+class CoreImageResponse implements CoreImageResult {
+  /// The generated image, encoded to base64.
+  final String image;
+
+  /// The reason the generation finished.
+  @JsonKey(name: 'finish_reason')
+  final FinishReason finishReason;
+
+  /// The seed used as random noise for this generation.
+  final int? seed;
+
+  CoreImageResponse({
+    required this.image,
+    required this.finishReason,
+    this.seed,
+  });
+
+  factory CoreImageResponse.fromJson(Map<String, dynamic> json) =>
+      _$CoreImageResponseFromJson(json);
+  Map<String, dynamic> toJson() => _$CoreImageResponseToJson(this);
+}
+
+/// Request parameters for the Core Image generation API.
+@JsonSerializable()
+class CoreImageRequest {
+  /// What you wish to see in the output image.
+  final String prompt;
+
+  /// Keywords of what you do not wish to see in the output image.
+  @JsonKey(name: 'negative_prompt')
+  final String? negativePrompt;
+
+  /// The aspect ratio of the output image.
+  @JsonKey(name: 'aspect_ratio')
+  final AspectRatio? aspectRatio;
+
+  /// The randomness seed to use for generation.
+  final int? seed;
+
+  /// The format of the output image.
+  @JsonKey(name: 'output_format')
+  final OutputFormat? outputFormat;
+
+  /// The style preset to use for generation.
+  @JsonKey(name: 'style_preset')
+  final StylePreset? stylePreset;
+
+  CoreImageRequest({
+    required this.prompt,
+    this.negativePrompt,
+    this.aspectRatio,
+    this.seed,
+    this.outputFormat,
+    this.stylePreset,
+  }) {
+    if (seed != null && (seed! < 0 || seed! > 4294967294)) {
+      throw ArgumentError('seed must be between 0 and 4294967294');
+    }
+  }
+
+  factory CoreImageRequest.fromJson(Map<String, dynamic> json) =>
+      _$CoreImageRequestFromJson(json);
+  Map<String, dynamic> toJson() => _$CoreImageRequestToJson(this);
 }
 
 /// Response from the upscale result API.

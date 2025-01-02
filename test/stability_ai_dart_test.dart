@@ -986,6 +986,144 @@ void main() {
       });
     });
 
+    group('generateCoreImage', () {
+      test('returns binary data when returnJson is false', () async {
+        final expectedBytes = Uint8List.fromList([1, 2, 3]);
+
+        when(mockClient.send(any)).thenAnswer((_) async {
+          return http.StreamedResponse(
+            Stream.value(expectedBytes),
+            200,
+            headers: {'content-type': 'image/png'},
+          );
+        });
+
+        final request = CoreImageRequest(prompt: 'test prompt');
+        final response = await client.generateCoreImage(request: request);
+
+        expect(response, isA<CoreImageBytes>());
+        expect((response as CoreImageBytes).bytes, expectedBytes);
+
+        final captured = verify(mockClient.send(captureAny)).captured.single
+            as http.MultipartRequest;
+        expect(captured.fields['prompt'], 'test prompt');
+      });
+
+      test('returns CoreImageResponse when returnJson is true', () async {
+        final expectedBase64 = base64.encode([1, 2, 3]);
+
+        when(mockClient.send(any)).thenAnswer((_) async {
+          return http.StreamedResponse(
+            Stream.value(utf8.encode(jsonEncode({
+              'image': expectedBase64,
+              'finish_reason': 'SUCCESS',
+              'seed': 123,
+            }))),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        });
+
+        final request = CoreImageRequest(prompt: 'test prompt');
+        final response = await client.generateCoreImage(
+          request: request,
+          returnJson: true,
+        );
+
+        expect(response, isA<CoreImageResponse>());
+        final jsonResponse = response as CoreImageResponse;
+        expect(jsonResponse.image, expectedBase64);
+        expect(jsonResponse.finishReason, FinishReason.success);
+        expect(jsonResponse.seed, 123);
+      });
+
+      test('includes all optional parameters in request', () async {
+        final request = CoreImageRequest(
+          prompt: 'test prompt',
+          negativePrompt: 'test negative',
+          aspectRatio: AspectRatio.ratio16x9,
+          seed: 123,
+          outputFormat: OutputFormat.png,
+          stylePreset: StylePreset.photographic,
+        );
+
+        when(mockClient.send(any)).thenAnswer((_) async {
+          return http.StreamedResponse(
+            Stream.value(utf8.encode(jsonEncode({
+              'image': 'test-base64',
+              'finish_reason': 'SUCCESS',
+            }))),
+            200,
+          );
+        });
+
+        await client.generateCoreImage(request: request);
+
+        final captured = verify(mockClient.send(captureAny)).captured.single
+            as http.MultipartRequest;
+        expect(captured.fields['prompt'], 'test prompt');
+        expect(captured.fields['negative_prompt'], 'test negative');
+        expect(captured.fields['aspect_ratio'], 'ratio16x9');
+        expect(captured.fields['seed'], '123');
+        expect(captured.fields['output_format'], 'png');
+        expect(captured.fields['style_preset'], 'photographic');
+      });
+
+      test('throws exception with error details on error response', () async {
+        when(mockClient.send(any)).thenAnswer((_) async {
+          final response = http.StreamedResponse(
+            Stream.value(utf8.encode(jsonEncode({
+              'id': 'error-id',
+              'name': 'bad_request',
+              'errors': ['Invalid prompt', 'Invalid style preset'],
+            }))),
+            400,
+            headers: {'content-type': 'application/json'},
+          );
+          return response;
+        });
+
+        final request = CoreImageRequest(prompt: 'test prompt');
+
+        expect(
+          () => client.generateCoreImage(request: request),
+          throwsA(
+            allOf(
+              isA<StabilityAiException>(),
+              predicate((StabilityAiException e) =>
+                  e.statusCode == 400 &&
+                  e.message == 'Invalid prompt, Invalid style preset' &&
+                  e.id == 'error-id' &&
+                  e.name == 'bad_request'),
+            ),
+          ),
+        );
+      });
+
+      test('uses correct endpoint URL', () async {
+        final request = CoreImageRequest(prompt: 'test prompt');
+
+        when(mockClient.send(any)).thenAnswer((_) async {
+          return http.StreamedResponse(
+            Stream.value(utf8.encode(jsonEncode({
+              'image': 'test-base64',
+              'finish_reason': 'SUCCESS',
+            }))),
+            200,
+          );
+        });
+
+        await client.generateCoreImage(request: request);
+
+        final captured = verify(mockClient.send(captureAny)).captured.single
+            as http.MultipartRequest;
+        expect(
+          captured.url.toString(),
+          'https://api.stability.ai/v2beta/stable-image/generate/core',
+        );
+      });
+    });
+
     group('upscaleImageFast', () {
       test('returns binary data when returnJson is false', () async {
         final expectedBytes = Uint8List.fromList([1, 2, 3]);

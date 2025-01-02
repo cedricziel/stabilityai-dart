@@ -95,6 +95,76 @@ class StabilityAiClient {
     return GenerationResponse.fromJson(json.decode(response.body));
   }
 
+  /// Generates an image using the Stable Image Core API.
+  ///
+  /// Returns either a [CoreImageResponse] containing the base64 encoded image and metadata
+  /// when [returnJson] is true, or [CoreImageBytes] containing the raw image data when
+  /// [returnJson] is false.
+  ///
+  /// The resolution of the generated image will be 1.5 megapixels.
+  ///
+  /// Example:
+  /// ```dart
+  /// final request = CoreImageRequest(
+  ///   prompt: 'A lighthouse on a cliff overlooking the ocean',
+  ///   aspectRatio: AspectRatio.ratio16x9,
+  ///   stylePreset: StylePreset.photographic,
+  /// );
+  /// final result = await client.generateCoreImage(
+  ///   request: request,
+  ///   returnJson: false,
+  /// );
+  /// if (result is CoreImageBytes) {
+  ///   await File('lighthouse.png').writeAsBytes(result.bytes);
+  /// }
+  /// ```
+  ///
+  /// Note: This endpoint has a flat rate of 3 credits per successful generation.
+  Future<CoreImageResult> generateCoreImage({
+    required CoreImageRequest request,
+    bool returnJson = false,
+  }) async {
+    final uri = Uri.parse('$baseUrl/v2beta/stable-image/generate/core');
+    final multipart = http.MultipartRequest('POST', uri);
+
+    // Add headers
+    multipart.headers.addAll(_ultraHeaders(returnJson: returnJson));
+
+    // Add required fields
+    multipart.fields['prompt'] = request.prompt;
+
+    // Add optional fields
+    if (request.negativePrompt != null) {
+      multipart.fields['negative_prompt'] = request.negativePrompt!;
+    }
+    if (request.aspectRatio != null) {
+      multipart.fields['aspect_ratio'] =
+          request.aspectRatio.toString().split('.').last;
+    }
+    if (request.seed != null) {
+      multipart.fields['seed'] = request.seed.toString();
+    }
+    if (request.outputFormat != null) {
+      multipart.fields['output_format'] =
+          request.outputFormat.toString().split('.').last;
+    }
+    if (request.stylePreset != null) {
+      multipart.fields['style_preset'] =
+          request.stylePreset.toString().split('.').last;
+    }
+
+    final streamedResponse = await _httpClient.send(multipart);
+    final response = await http.Response.fromStream(streamedResponse);
+
+    _checkResponse(response);
+
+    if (returnJson) {
+      return CoreImageResponse.fromJson(json.decode(response.body));
+    } else {
+      return CoreImageBytes(response.bodyBytes);
+    }
+  }
+
   /// Generates an image using the Stable Image Ultra API.
   ///
   /// Returns either an [UltraImageResponse] containing the base64 encoded image and metadata
