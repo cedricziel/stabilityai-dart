@@ -5,7 +5,6 @@ build/
 pubspec.lock
 
 # Generated files
-*.g.dart
 *.freezed.dart
 *.mocks.dart
 
