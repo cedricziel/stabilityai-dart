@@ -200,7 +200,7 @@ class StabilityAiClient {
     }
   }
 
-  /// Upscales an image to a higher resolution (up to 4K).
+  /// Upscales an image using the standard upscaler (up to 4K).
   ///
   /// Takes images between 64x64 and 1 megapixel and upscales them while preserving
   /// and often enhancing quality. The upscaling process can increase the image size
@@ -274,6 +274,68 @@ class StabilityAiClient {
     return UpscaleResponse.fromJson(json.decode(response.body));
   }
 
+  /// Upscales an image using the conservative upscaler (up to 4K).
+  ///
+  /// Takes images between 64x64 and 1 megapixel and upscales them while preserving
+  /// all aspects. Conservative Upscale minimizes alterations to the image and should
+  /// not be used to reimagine an image.
+  ///
+  /// Returns either an [UltraImageResponse] containing the base64 encoded image and metadata
+  /// when [returnJson] is true, or [UltraImageBytes] containing the raw image data when
+  /// [returnJson] is false.
+  ///
+  /// The resolution of the generated image will be 4 megapixels.
+  ///
+  /// Note: This endpoint has a flat rate of 25 credits per generation.
+  Future<UltraImageResult> upscaleImageConservative({
+    required UpscaleRequest request,
+    bool returnJson = false,
+  }) async {
+    final uri = Uri.parse('$baseUrl/v2beta/stable-image/upscale/conservative');
+    final multipart = http.MultipartRequest('POST', uri);
+
+    // Add headers
+    multipart.headers.addAll(_ultraHeaders(returnJson: returnJson));
+
+    // Add image file
+    final imageFile = http.MultipartFile.fromBytes(
+      'image',
+      request.image,
+      filename: 'image',
+      contentType: MediaType('image', '*'),
+    );
+    multipart.files.add(imageFile);
+
+    // Add required prompt
+    multipart.fields['prompt'] = request.prompt;
+
+    // Add optional fields
+    if (request.negativePrompt != null) {
+      multipart.fields['negative_prompt'] = request.negativePrompt!;
+    }
+    if (request.outputFormat != null) {
+      multipart.fields['output_format'] =
+          request.outputFormat.toString().split('.').last;
+    }
+    if (request.seed != null) {
+      multipart.fields['seed'] = request.seed.toString();
+    }
+    if (request.creativity != null) {
+      multipart.fields['creativity'] = request.creativity.toString();
+    }
+
+    final streamedResponse = await _httpClient.send(multipart);
+    final response = await http.Response.fromStream(streamedResponse);
+
+    _checkResponse(response);
+
+    if (returnJson) {
+      return UltraImageResponse.fromJson(json.decode(response.body));
+    } else {
+      return UltraImageBytes(response.bodyBytes);
+    }
+  }
+
   /// Fetches the result of an upscale generation by ID.
   ///
   /// Returns either an [UpscaleResultResponse] containing the base64 encoded image and metadata
@@ -343,7 +405,7 @@ class StabilityAiClient {
     }
   }
 
-  /// Upscales an image and waits for the result.
+  /// Upscales an image using the standard upscaler and waits for the result.
   ///
   /// This is a convenience method that combines [upscaleImage] and [getUpscaleResult]
   /// into a single call. It handles polling for the result internally.
@@ -399,6 +461,50 @@ class StabilityAiClient {
 
       return result as UpscaleResult;
     }
+  }
+
+  /// Upscales an image using the conservative upscaler and waits for the result.
+  ///
+  /// This is a convenience method that combines [upscaleImageConservative] and [getUpscaleResult]
+  /// into a single call. It handles polling for the result internally.
+  ///
+  /// The [request] must include:
+  /// - An image file between 64x64 and 1 megapixel in size
+  /// - A prompt describing what you wish to see in the output image
+  ///
+  /// Optional parameters in the request:
+  /// - [negativePrompt]: Keywords of what you do not wish to see
+  /// - [outputFormat]: Desired format of the output image (jpeg, png, or webp)
+  /// - [seed]: Specific value to guide the randomness (0-4294967294)
+  /// - [creativity]: Controls how creative the model should be (0-0.35)
+  ///
+  /// Returns either an [UpscaleResultResponse] containing the base64 encoded image and metadata
+  /// when [returnJson] is true, or [UpscaleResultBytes] containing the raw image data when
+  /// [returnJson] is false.
+  ///
+  /// Example:
+  /// ```dart
+  /// final request = UpscaleRequest(
+  ///   image: imageBytes,
+  ///   prompt: 'A high resolution landscape photo',
+  ///   outputFormat: OutputFormat.png,
+  /// );
+  /// final result = await client.upscaleImageConservativeAndWaitForResult(
+  ///   request: request,
+  ///   returnJson: false,
+  /// );
+  /// if (result is UpscaleResultBytes) {
+  ///   await File('upscaled.png').writeAsBytes(result.bytes);
+  /// }
+  /// ```
+  ///
+  /// Note: This endpoint has a flat rate of 25 credits per generation.
+  Future<UltraImageResult> upscaleImageConservativeAndWaitForResult({
+    required UpscaleRequest request,
+    bool returnJson = false,
+    Duration pollInterval = const Duration(seconds: 10),
+  }) async {
+    return upscaleImageConservative(request: request, returnJson: returnJson);
   }
 
   void close() {

@@ -175,7 +175,14 @@ if (jsonResult is RemoveBackgroundResponse) {
 
 ### Upscale Images
 
-There are two ways to upscale images: using the convenience method or manual polling.
+There are two upscaling options available:
+
+1. Standard Upscaler: Enhances quality while upscaling
+2. Conservative Upscaler: Minimizes alterations while upscaling
+
+Each upscaler can be used either with a convenience method or manual polling.
+
+#### Standard Upscaler
 
 #### Using the Convenience Method
 
@@ -207,9 +214,47 @@ if (result is UpscaleResultBytes) {
 }
 ```
 
-#### Manual Polling
+#### Conservative Upscaler
 
-For more control over the polling process, you can use the separate methods:
+The conservative upscaler preserves the original image's aspects more strictly:
+
+```dart
+final request = UpscaleRequest(
+  image: imageBytes, // Uint8List of image (64x64 to 1 megapixel)
+  prompt: 'A high resolution landscape photo',
+  negativePrompt: 'blur, noise', // optional: what not to include
+  outputFormat: OutputFormat.png,
+  seed: 123, // optional: for reproducible results
+  creativity: 0.3, // optional: control creative enhancement (0.0 to 0.35)
+);
+
+// Get the result directly
+final result = await client.upscaleImageConservative(
+  request: request,
+  returnJson: false, // true for JSON response with metadata
+);
+
+if (result is UltraImageBytes) {
+  // Handle raw bytes
+  await File('upscaled.png').writeAsBytes(result.bytes);
+} else if (result is UltraImageResponse) {
+  // Handle JSON response
+  print('Finish reason: ${result.finishReason}');
+  final bytes = base64.decode(result.image);
+  await File('upscaled.png').writeAsBytes(bytes);
+}
+
+// Or use the convenience method
+final result = await client.upscaleImageConservativeAndWaitForResult(
+  request: request,
+  returnJson: false,
+  pollInterval: Duration(seconds: 10), // optional: customize polling interval
+);
+```
+
+#### Manual Polling (Standard Upscaler)
+
+For more control over the polling process with the standard upscaler, you can use the separate methods:
 
 ```dart
 final request = UpscaleRequest(
