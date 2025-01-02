@@ -1,4 +1,3 @@
-import 'package:http/http.dart' as http;
 import 'models/models.dart';
 
 /// Interface for interacting with the Stability AI REST API.

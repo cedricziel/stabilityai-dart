@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:convert';
 import 'package:stability_ai_dart/stability_ai_dart.dart';
 
 // This example demonstrates image upscaling capabilities
