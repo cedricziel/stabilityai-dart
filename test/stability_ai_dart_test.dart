@@ -650,5 +650,234 @@ void main() {
         );
       });
     });
+
+    group('upscaleImageCreative', () {
+      test('returns upscale response with generation ID', () async {
+        final imageBytes = Uint8List.fromList([1, 2, 3]);
+        final expectedId = 'test-generation-id';
+
+        when(mockClient.send(any)).thenAnswer((_) async {
+          return http.StreamedResponse(
+            Stream.value(utf8.encode(jsonEncode({
+              'id': expectedId,
+            }))),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        });
+
+        final request = UpscaleRequest(
+          image: imageBytes,
+          prompt: 'test prompt',
+        );
+        final response = await client.upscaleImageCreative(request: request);
+
+        expect(response, isA<UpscaleResponse>());
+        expect(response.id, expectedId);
+
+        final captured = verify(mockClient.send(captureAny)).captured.single
+            as http.MultipartRequest;
+        expect(captured.files.length, 1);
+        expect(captured.files.first.field, 'image');
+        expect(captured.fields['prompt'], 'test prompt');
+      });
+
+      test('includes all optional parameters in request', () async {
+        final imageBytes = Uint8List.fromList([1, 2, 3]);
+        final request = UpscaleRequest(
+          image: imageBytes,
+          prompt: 'test prompt',
+          negativePrompt: 'test negative',
+          outputFormat: OutputFormat.png,
+          seed: 123,
+          creativity: 0.3,
+        );
+
+        when(mockClient.send(any)).thenAnswer((_) async {
+          return http.StreamedResponse(
+            Stream.value(utf8.encode(jsonEncode({
+              'id': 'test-id',
+            }))),
+            200,
+          );
+        });
+
+        await client.upscaleImageCreative(request: request);
+
+        final captured = verify(mockClient.send(captureAny)).captured.single
+            as http.MultipartRequest;
+        expect(captured.fields['prompt'], 'test prompt');
+        expect(captured.fields['negative_prompt'], 'test negative');
+        expect(captured.fields['output_format'], 'png');
+        expect(captured.fields['seed'], '123');
+        expect(captured.fields['creativity'], '0.3');
+        expect(captured.files.length, 1);
+        expect(captured.files.first.field, 'image');
+      });
+
+      test('throws exception with error details on error response', () async {
+        final imageBytes = Uint8List.fromList([1, 2, 3]);
+
+        when(mockClient.send(any)).thenAnswer((_) async {
+          final response = http.StreamedResponse(
+            Stream.value(utf8.encode(jsonEncode({
+              'id': 'error-id',
+              'name': 'bad_request',
+              'errors': ['Invalid image size', 'Invalid prompt'],
+            }))),
+            400,
+            headers: {'content-type': 'application/json'},
+          );
+          return response;
+        });
+
+        final request = UpscaleRequest(
+          image: imageBytes,
+          prompt: 'test prompt',
+        );
+
+        expect(
+          () => client.upscaleImageCreative(request: request),
+          throwsA(
+            allOf(
+              isA<StabilityAiException>(),
+              predicate((StabilityAiException e) =>
+                  e.statusCode == 400 &&
+                  e.message == 'Invalid image size, Invalid prompt' &&
+                  e.id == 'error-id' &&
+                  e.name == 'bad_request'),
+            ),
+          ),
+        );
+      });
+
+      test('uses correct endpoint URL', () async {
+        final imageBytes = Uint8List.fromList([1, 2, 3]);
+        final request = UpscaleRequest(
+          image: imageBytes,
+          prompt: 'test prompt',
+        );
+
+        when(mockClient.send(any)).thenAnswer((_) async {
+          return http.StreamedResponse(
+            Stream.value(utf8.encode(jsonEncode({
+              'id': 'test-id',
+            }))),
+            200,
+          );
+        });
+
+        await client.upscaleImageCreative(request: request);
+
+        final captured = verify(mockClient.send(captureAny)).captured.single
+            as http.MultipartRequest;
+        expect(
+          captured.url.toString(),
+          'https://api.stability.ai/v2beta/stable-image/upscale/creative',
+        );
+      });
+    });
+
+    group('upscaleImageCreativeAndWaitForResult', () {
+      test('polls until result is ready', () async {
+        final imageBytes = Uint8List.fromList([1, 2, 3]);
+        final expectedId = 'test-generation-id';
+        final expectedBase64 = base64.encode([4, 5, 6]);
+
+        // Mock the initial upscale request
+        when(mockClient.send(any)).thenAnswer((_) async {
+          return http.StreamedResponse(
+            Stream.value(utf8.encode(jsonEncode({
+              'id': expectedId,
+            }))),
+            200,
+          );
+        });
+
+        // Mock the result polling - first in progress, then complete
+        var pollCount = 0;
+        when(mockClient.get(
+          Uri.parse(
+              'https://api.stability.ai/v2alpha/generation/stable-image/upscale/result/$expectedId'),
+          headers: anyNamed('headers'),
+        )).thenAnswer((_) async {
+          pollCount++;
+          if (pollCount == 1) {
+            return http.Response(
+              jsonEncode({
+                'id': expectedId,
+                'status': 'in-progress',
+              }),
+              202,
+            );
+          }
+          return http.Response(
+            jsonEncode({
+              'image': expectedBase64,
+              'finish_reason': 'SUCCESS',
+              'seed': 123,
+            }),
+            200,
+          );
+        });
+
+        final request = UpscaleRequest(
+          image: imageBytes,
+          prompt: 'test prompt',
+        );
+        final result = await client.upscaleImageCreativeAndWaitForResult(
+          request: request,
+          returnJson: true,
+          pollInterval: Duration(milliseconds: 1), // Speed up test
+        );
+
+        expect(result, isA<UpscaleResultResponse>());
+        final response = result as UpscaleResultResponse;
+        expect(response.image, expectedBase64);
+        expect(response.finishReason, FinishReason.success);
+        expect(response.seed, 123);
+        expect(pollCount, 2); // Verify we polled twice
+      });
+
+      test('returns raw bytes when returnJson is false', () async {
+        final imageBytes = Uint8List.fromList([1, 2, 3]);
+        final expectedId = 'test-generation-id';
+        final expectedResultBytes = Uint8List.fromList([4, 5, 6]);
+
+        // Mock the initial upscale request
+        when(mockClient.send(any)).thenAnswer((_) async {
+          return http.StreamedResponse(
+            Stream.value(utf8.encode(jsonEncode({
+              'id': expectedId,
+            }))),
+            200,
+          );
+        });
+
+        // Mock the result polling - return bytes immediately
+        when(mockClient.get(
+          Uri.parse(
+              'https://api.stability.ai/v2alpha/generation/stable-image/upscale/result/$expectedId'),
+          headers: anyNamed('headers'),
+        )).thenAnswer((_) async => http.Response.bytes(
+              expectedResultBytes,
+              200,
+              headers: {'content-type': 'image/png'},
+            ));
+
+        final request = UpscaleRequest(
+          image: imageBytes,
+          prompt: 'test prompt',
+        );
+        final result = await client.upscaleImageCreativeAndWaitForResult(
+          request: request,
+          returnJson: false,
+        );
+
+        expect(result, isA<UpscaleResultBytes>());
+        final response = result as UpscaleResultBytes;
+        expect(response.bytes, expectedResultBytes);
+      });
+    });
   });
 }

@@ -175,10 +175,11 @@ if (jsonResult is RemoveBackgroundResponse) {
 
 ### Upscale Images
 
-There are two upscaling options available:
+There are three upscaling options available:
 
 1. Standard Upscaler: Enhances quality while upscaling
-2. Conservative Upscaler: Minimizes alterations while upscaling
+2. Creative Upscaler: Best for highly degraded images, performs heavy reimagining
+3. Conservative Upscaler: Minimizes alterations while upscaling
 
 Each upscaler can be used either with a convenience method or manual polling.
 
@@ -212,6 +213,42 @@ if (result is UpscaleResultBytes) {
   final bytes = base64.decode(result.image);
   await File('upscaled.png').writeAsBytes(bytes);
 }
+```
+
+#### Creative Upscaler
+
+The creative upscaler is optimized for highly degraded images and performs heavy reimagining:
+
+```dart
+final request = UpscaleRequest(
+  image: imageBytes, // Uint8List of image (64x64 to 1 megapixel)
+  prompt: 'A high resolution landscape photo',
+  negativePrompt: 'blur, noise', // optional: what not to include
+  outputFormat: OutputFormat.png,
+  seed: 123, // optional: for reproducible results
+  creativity: 0.3, // optional: control creative enhancement (0.0 to 0.35)
+);
+
+// Get the result with polling handled automatically
+final result = await client.upscaleImageCreativeAndWaitForResult(
+  request: request,
+  returnJson: false,
+  pollInterval: Duration(seconds: 10), // optional: customize polling interval
+);
+
+if (result is UpscaleResultBytes) {
+  // Handle raw bytes
+  await File('upscaled.png').writeAsBytes(result.bytes);
+} else if (result is UpscaleResultResponse) {
+  // Handle JSON response
+  print('Finish reason: ${result.finishReason}');
+  final bytes = base64.decode(result.image);
+  await File('upscaled.png').writeAsBytes(bytes);
+}
+
+// Or start the upscale and handle polling manually
+final response = await client.upscaleImageCreative(request: request);
+print('Generation ID: ${response.id}');
 ```
 
 #### Conservative Upscaler

@@ -230,11 +230,86 @@ class StabilityAiClient {
   /// print('Generation ID: ${response.id}');
   /// ```
   ///
-  /// Note: This endpoint has a flat rate of 25 cents per generation.
+  /// Note: This endpoint has a flat rate of 25 credits per generation.
   Future<UpscaleResponse> upscaleImage({
     required UpscaleRequest request,
   }) async {
     final uri = Uri.parse('$baseUrl/v2alpha/generation/stable-image/upscale');
+    final multipart = http.MultipartRequest('POST', uri);
+
+    // Add headers
+    multipart.headers.addAll(_headers);
+
+    // Add image file
+    final imageFile = http.MultipartFile.fromBytes(
+      'image',
+      request.image,
+      filename: 'image',
+      contentType: MediaType('image', '*'),
+    );
+    multipart.files.add(imageFile);
+
+    // Add required prompt
+    multipart.fields['prompt'] = request.prompt;
+
+    // Add optional fields
+    if (request.negativePrompt != null) {
+      multipart.fields['negative_prompt'] = request.negativePrompt!;
+    }
+    if (request.outputFormat != null) {
+      multipart.fields['output_format'] =
+          request.outputFormat.toString().split('.').last;
+    }
+    if (request.seed != null) {
+      multipart.fields['seed'] = request.seed.toString();
+    }
+    if (request.creativity != null) {
+      multipart.fields['creativity'] = request.creativity.toString();
+    }
+
+    final streamedResponse = await _httpClient.send(multipart);
+    final response = await http.Response.fromStream(streamedResponse);
+
+    _checkResponse(response);
+    return UpscaleResponse.fromJson(json.decode(response.body));
+  }
+
+  /// Upscales an image using the creative upscaler (up to 4K).
+  ///
+  /// Takes images between 64x64 and 1 megapixel and upscales them all the way to 4K resolution.
+  /// Put more generally, it can upscale images ~20-40x times while preserving, and often enhancing, quality.
+  /// Creative Upscale works best on highly degraded images and is not for photos of 1mp or above as it performs
+  /// heavy reimagining (controlled by creativity scale).
+  ///
+  /// The [request] must include:
+  /// - An image file between 64x64 and 1 megapixel in size
+  /// - A prompt describing what you wish to see in the output image
+  ///
+  /// Optional parameters in the request:
+  /// - [negativePrompt]: Keywords of what you do not wish to see
+  /// - [outputFormat]: Desired format of the output image (jpeg, png, or webp)
+  /// - [seed]: Specific value to guide the randomness (0-4294967294)
+  /// - [creativity]: Controls how creative the model should be (0-0.35)
+  ///
+  /// Returns an [UpscaleResponse] containing a generation ID that can be used to
+  /// fetch the result from the results/{id} endpoint.
+  ///
+  /// Example:
+  /// ```dart
+  /// final request = UpscaleRequest(
+  ///   image: imageBytes,
+  ///   prompt: 'A cute fluffy white kitten floating in space, pastel colors',
+  ///   outputFormat: OutputFormat.webp,
+  /// );
+  /// final response = await client.upscaleImageCreative(request: request);
+  /// print('Generation ID: ${response.id}');
+  /// ```
+  ///
+  /// Note: This endpoint has a flat rate of 25 credits per generation.
+  Future<UpscaleResponse> upscaleImageCreative({
+    required UpscaleRequest request,
+  }) async {
+    final uri = Uri.parse('$baseUrl/v2beta/stable-image/upscale/creative');
     final multipart = http.MultipartRequest('POST', uri);
 
     // Add headers
@@ -499,6 +574,70 @@ class StabilityAiClient {
   /// ```
   ///
   /// Note: This endpoint has a flat rate of 25 credits per generation.
+  /// Upscales an image using the creative upscaler and waits for the result.
+  ///
+  /// This is a convenience method that combines [upscaleImageCreative] and [getUpscaleResult]
+  /// into a single call. It handles polling for the result internally.
+  ///
+  /// Takes images between 64x64 and 1 megapixel and upscales them all the way to 4K resolution.
+  /// Put more generally, it can upscale images ~20-40x times while preserving, and often enhancing, quality.
+  /// Creative Upscale works best on highly degraded images and is not for photos of 1mp or above as it performs
+  /// heavy reimagining (controlled by creativity scale).
+  ///
+  /// The [request] must include:
+  /// - An image file between 64x64 and 1 megapixel in size
+  /// - A prompt describing what you wish to see in the output image
+  ///
+  /// Optional parameters in the request:
+  /// - [negativePrompt]: Keywords of what you do not wish to see
+  /// - [outputFormat]: Desired format of the output image (jpeg, png, or webp)
+  /// - [seed]: Specific value to guide the randomness (0-4294967294)
+  /// - [creativity]: Controls how creative the model should be (0-0.35)
+  ///
+  /// Returns either an [UpscaleResultResponse] containing the base64 encoded image and metadata
+  /// when [returnJson] is true, or [UpscaleResultBytes] containing the raw image data when
+  /// [returnJson] is false.
+  ///
+  /// Example:
+  /// ```dart
+  /// final request = UpscaleRequest(
+  ///   image: imageBytes,
+  ///   prompt: 'A high resolution landscape photo',
+  ///   outputFormat: OutputFormat.png,
+  ///   creativity: 0.3,
+  /// );
+  /// final result = await client.upscaleImageCreativeAndWaitForResult(
+  ///   request: request,
+  ///   returnJson: false,
+  /// );
+  /// if (result is UpscaleResultBytes) {
+  ///   await File('upscaled.png').writeAsBytes(result.bytes);
+  /// }
+  /// ```
+  ///
+  /// Note: This endpoint has a flat rate of 25 credits per generation.
+  Future<UpscaleResult> upscaleImageCreativeAndWaitForResult({
+    required UpscaleRequest request,
+    bool returnJson = false,
+    Duration pollInterval = const Duration(seconds: 10),
+  }) async {
+    final response = await upscaleImageCreative(request: request);
+
+    while (true) {
+      final result = await getUpscaleResult(
+        id: response.id,
+        returnJson: returnJson,
+      );
+
+      if (result is UpscaleInProgressResponse) {
+        await Future.delayed(pollInterval);
+        continue;
+      }
+
+      return result as UpscaleResult;
+    }
+  }
+
   Future<UltraImageResult> upscaleImageConservativeAndWaitForResult({
     required UpscaleRequest request,
     bool returnJson = false,
