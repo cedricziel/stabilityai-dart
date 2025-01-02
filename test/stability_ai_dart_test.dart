@@ -985,5 +985,126 @@ void main() {
         );
       });
     });
+
+    group('upscaleImageFast', () {
+      test('returns binary data when returnJson is false', () async {
+        final expectedBytes = Uint8List.fromList([1, 2, 3]);
+        final imageBytes = Uint8List.fromList([4, 5, 6]);
+
+        when(mockClient.send(any)).thenAnswer((_) async {
+          return http.StreamedResponse(
+            Stream.value(expectedBytes),
+            200,
+            headers: {'content-type': 'image/png'},
+          );
+        });
+
+        final request = FastUpscaleRequest(
+          image: imageBytes,
+        );
+        final response = await client.upscaleImageFast(request: request);
+
+        expect(response, isA<FastUpscaleBytes>());
+        expect((response as FastUpscaleBytes).bytes, expectedBytes);
+
+        final captured = verify(mockClient.send(captureAny)).captured.single
+            as http.MultipartRequest;
+        expect(captured.files.length, 1);
+        expect(captured.files.first.field, 'image');
+      });
+
+      test('returns FastUpscaleResponse when returnJson is true', () async {
+        final expectedBase64 = base64.encode([1, 2, 3]);
+        final imageBytes = Uint8List.fromList([4, 5, 6]);
+
+        when(mockClient.send(any)).thenAnswer((_) async {
+          return http.StreamedResponse(
+            Stream.value(utf8.encode(jsonEncode({
+              'image': expectedBase64,
+              'finish_reason': 'SUCCESS',
+              'seed': 123,
+            }))),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        });
+
+        final request = FastUpscaleRequest(
+          image: imageBytes,
+          outputFormat: OutputFormat.png,
+        );
+        final response = await client.upscaleImageFast(
+          request: request,
+          returnJson: true,
+        );
+
+        expect(response, isA<FastUpscaleResponse>());
+        final jsonResponse = response as FastUpscaleResponse;
+        expect(jsonResponse.image, expectedBase64);
+        expect(jsonResponse.finishReason, FinishReason.success);
+        expect(jsonResponse.seed, 123);
+
+        final captured = verify(mockClient.send(captureAny)).captured.single
+            as http.MultipartRequest;
+        expect(captured.fields['output_format'], 'png');
+      });
+
+      test('throws exception with error details on error response', () async {
+        final imageBytes = Uint8List.fromList([1, 2, 3]);
+
+        when(mockClient.send(any)).thenAnswer((_) async {
+          final response = http.StreamedResponse(
+            Stream.value(utf8.encode(jsonEncode({
+              'id': 'error-id',
+              'name': 'bad_request',
+              'errors': ['Invalid image size', 'Image too large'],
+            }))),
+            400,
+            headers: {'content-type': 'application/json'},
+          );
+          return response;
+        });
+
+        final request = FastUpscaleRequest(image: imageBytes);
+
+        expect(
+          () => client.upscaleImageFast(request: request),
+          throwsA(
+            allOf(
+              isA<StabilityAiException>(),
+              predicate((StabilityAiException e) =>
+                  e.statusCode == 400 &&
+                  e.message == 'Invalid image size, Image too large' &&
+                  e.id == 'error-id' &&
+                  e.name == 'bad_request'),
+            ),
+          ),
+        );
+      });
+
+      test('uses correct endpoint URL', () async {
+        final imageBytes = Uint8List.fromList([1, 2, 3]);
+        final request = FastUpscaleRequest(image: imageBytes);
+
+        when(mockClient.send(any)).thenAnswer((_) async {
+          return http.StreamedResponse(
+            Stream.value(utf8.encode(jsonEncode({
+              'image': 'test-base64',
+              'finish_reason': 'SUCCESS',
+            }))),
+            200,
+          );
+        });
+
+        await client.upscaleImageFast(request: request);
+
+        final captured = verify(mockClient.send(captureAny)).captured.single
+            as http.MultipartRequest;
+        expect(
+          captured.url.toString(),
+          'https://api.stability.ai/v2beta/stable-image/upscale/fast',
+        );
+      });
+    });
   });
 }

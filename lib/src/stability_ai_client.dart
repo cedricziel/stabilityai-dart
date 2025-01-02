@@ -615,6 +615,77 @@ class StabilityAiClient {
     return upscaleImageConservative(request: request, returnJson: returnJson);
   }
 
+  /// Upscales an image using the fast upscaler (4x).
+  ///
+  /// Our Fast Upscaler service enhances image resolution by 4x using predictive and generative AI.
+  /// This lightweight and fast service (processing in ~1 second) is ideal for enhancing the quality
+  /// of compressed images, making it suitable for social media posts and other applications.
+  ///
+  /// Returns either a [FastUpscaleResponse] containing the base64 encoded image and metadata
+  /// when [returnJson] is true, or [FastUpscaleBytes] containing the raw image data when
+  /// [returnJson] is false.
+  ///
+  /// The resolution of the generated image is 4 times that of the input image with a maximum
+  /// size of 16 megapixels.
+  ///
+  /// Validation Rules:
+  /// - Width must be between 32 and 1,536 pixels
+  /// - Height must be between 32 and 1,536 pixels
+  /// - Total pixel count must be between 1,024 and 1,048,576 pixels
+  ///
+  /// Example:
+  /// ```dart
+  /// final request = FastUpscaleRequest(
+  ///   image: imageBytes,
+  ///   outputFormat: OutputFormat.webp,
+  /// );
+  /// final result = await client.upscaleImageFast(
+  ///   request: request,
+  ///   returnJson: false,
+  /// );
+  /// if (result is FastUpscaleBytes) {
+  ///   await File('upscaled.webp').writeAsBytes(result.bytes);
+  /// }
+  /// ```
+  ///
+  /// Note: This endpoint has a flat rate of 1 credit per successful generation.
+  Future<FastUpscaleResult> upscaleImageFast({
+    required FastUpscaleRequest request,
+    bool returnJson = false,
+  }) async {
+    final uri = Uri.parse('$baseUrl/v2beta/stable-image/upscale/fast');
+    final multipart = http.MultipartRequest('POST', uri);
+
+    // Add headers
+    multipart.headers.addAll(_ultraHeaders(returnJson: returnJson));
+
+    // Add image file
+    final imageFile = http.MultipartFile.fromBytes(
+      'image',
+      request.image,
+      filename: 'image',
+      contentType: MediaType('image', '*'),
+    );
+    multipart.files.add(imageFile);
+
+    // Add optional output format
+    if (request.outputFormat != null) {
+      multipart.fields['output_format'] =
+          request.outputFormat.toString().split('.').last;
+    }
+
+    final streamedResponse = await _httpClient.send(multipart);
+    final response = await http.Response.fromStream(streamedResponse);
+
+    _checkResponse(response);
+
+    if (returnJson) {
+      return FastUpscaleResponse.fromJson(json.decode(response.body));
+    } else {
+      return FastUpscaleBytes(response.bodyBytes);
+    }
+  }
+
   /// Upscales an image using the creative upscaler and waits for the result.
   ///
   /// This is a convenience method that combines [upscaleImageCreative] and [getCreativeUpscaleResult]

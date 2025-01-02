@@ -175,11 +175,12 @@ if (jsonResult is RemoveBackgroundResponse) {
 
 ### Upscale Images
 
-There are three upscaling options available:
+There are four upscaling options available:
 
 1. Standard Upscaler: Enhances quality while upscaling
 2. Creative Upscaler: Best for highly degraded images, performs heavy reimagining
 3. Conservative Upscaler: Minimizes alterations while upscaling
+4. Fast Upscaler: Quick 4x upscaling with good quality, ideal for social media
 
 Each upscaler can be used either with a convenience method or manual polling.
 

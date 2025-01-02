@@ -434,6 +434,64 @@ class UpscaleInProgressResponse {
   Map<String, dynamic> toJson() => _$UpscaleInProgressResponseToJson(this);
 }
 
+/// Response from the fast upscale API.
+/// Can either contain raw bytes ([FastUpscaleBytes]) or a JSON response ([FastUpscaleResponse]).
+sealed class FastUpscaleResult {}
+
+/// Raw bytes response from the fast upscale API.
+class FastUpscaleBytes implements FastUpscaleResult {
+  final Uint8List bytes;
+
+  FastUpscaleBytes(this.bytes);
+}
+
+/// JSON response from the fast upscale API.
+@JsonSerializable()
+class FastUpscaleResponse implements FastUpscaleResult {
+  /// The generated image, encoded to base64.
+  final String image;
+
+  /// The reason the generation finished.
+  @JsonKey(name: 'finish_reason')
+  final FinishReason finishReason;
+
+  /// The seed used as random noise for this generation.
+  final int? seed;
+
+  FastUpscaleResponse({
+    required this.image,
+    required this.finishReason,
+    this.seed,
+  });
+
+  factory FastUpscaleResponse.fromJson(Map<String, dynamic> json) =>
+      _$FastUpscaleResponseFromJson(json);
+  Map<String, dynamic> toJson() => _$FastUpscaleResponseToJson(this);
+}
+
+/// Request parameters for the fast upscale API.
+@JsonSerializable()
+class FastUpscaleRequest {
+  /// The image to upscale.
+  @JsonKey(fromJson: _uint8ListFromJson, toJson: _uint8ListToJson)
+  final Uint8List image;
+
+  /// The format of the output image.
+  final OutputFormat? outputFormat;
+
+  static Uint8List _uint8ListFromJson(String json) => base64.decode(json);
+  static String _uint8ListToJson(Uint8List bytes) => base64.encode(bytes);
+
+  FastUpscaleRequest({
+    required this.image,
+    this.outputFormat,
+  });
+
+  factory FastUpscaleRequest.fromJson(Map<String, dynamic> json) =>
+      _$FastUpscaleRequestFromJson(json);
+  Map<String, dynamic> toJson() => _$FastUpscaleRequestToJson(this);
+}
+
 /// Response from the upscale result API.
 /// Can either contain raw bytes ([UpscaleResultBytes]) or a JSON response ([UpscaleResultResponse]).
 sealed class UpscaleResult {}
