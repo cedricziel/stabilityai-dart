@@ -1,7 +1,12 @@
 name: stability_ai_dart
-description: A Dart library for interacting with the Stability AI REST API
+description: A comprehensive Dart library for the Stability AI REST API.
+  Supports text-to-image, upscaling, and SD 3.0/3.5.
 version: 0.0.1
 homepage: https://github.com/cedricziel/stabilityai-dart
+repository: https://github.com/cedricziel/stabilityai-dart
+issue_tracker: https://github.com/cedricziel/stabilityai-dart/issues
+
+example: example/stability_ai_dart_example.dart
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
