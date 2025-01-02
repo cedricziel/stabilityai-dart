@@ -29,6 +29,11 @@ A Dart library for interacting with the Stability AI REST API.
 - Engine Management
   - List available engines
   - Engine details including type and status
+- Stable Diffusion 3.0 & 3.5 Image Generation
+  - Multiple model variants (large, medium, turbo)
+  - Support for aspect ratio control
+  - Optional image input for variations
+  - Multiple output formats (JPEG, PNG, WebP)
 - Full Type Safety
   - JSON serialization/deserialization
   - Proper error handling with detailed messages
@@ -457,6 +462,62 @@ The following output formats are supported:
 - JPEG (`OutputFormat.jpeg`)
 - PNG (`OutputFormat.png`)
 - WebP (`OutputFormat.webp`)
+
+### Generate Images with SD3
+
+```dart
+final request = SD3ImageRequest(
+  prompt: 'A lighthouse on a cliff overlooking the ocean',
+  model: SD3Model.sd35Large, // or sd35LargeTurbo, sd35Medium, sd3Large, sd3Medium, etc.
+  aspectRatio: AspectRatio.ratio16x9,
+  cfgScale: 7.0, // optional: control how closely the image follows the prompt
+  seed: 42, // optional: for reproducible results
+  outputFormat: OutputFormat.png,
+);
+
+// Get raw bytes
+final result = await client.generateSD3Image(
+  request: request,
+  returnJson: false,
+);
+
+if (result is SD3ImageBytes) {
+  // Use the raw bytes
+  await File('lighthouse.png').writeAsBytes(result.bytes);
+}
+
+// Or get JSON response with base64 and metadata
+final jsonResult = await client.generateSD3Image(
+  request: request,
+  returnJson: true,
+);
+
+if (jsonResult is SD3ImageResponse) {
+  print('Generated image: ${jsonResult.image}');
+  print('Finish reason: ${jsonResult.finishReason}');
+  print('Seed used: ${jsonResult.seed}');
+}
+```
+
+### SD3 Models and Credit Costs
+
+The following models are available for SD3 image generation:
+
+- SD 3.5 Large (6.5 credits)
+  - Highest quality model
+  - Best for detailed, high-fidelity images
+- SD 3.5 Large Turbo (4 credits)
+  - Faster generation
+  - Good balance of speed and quality
+- SD 3.5 Medium (3.5 credits)
+  - Lighter model with good quality
+  - More economical option
+- SD 3.0 Large (6.5 credits)
+  - Original SD3 high-quality model
+- SD 3.0 Large Turbo (4 credits)
+  - Faster version of SD3 large
+- SD 3.0 Medium (3.5 credits)
+  - Balanced SD3 model
 
 ### Cleanup
 
