@@ -798,7 +798,7 @@ void main() {
         var pollCount = 0;
         when(mockClient.get(
           Uri.parse(
-              'https://api.stability.ai/v2alpha/generation/stable-image/upscale/result/$expectedId'),
+              'https://api.stability.ai/v2beta/stable-image/upscale/creative/result/$expectedId'),
           headers: anyNamed('headers'),
         )).thenAnswer((_) async {
           pollCount++;
@@ -857,7 +857,7 @@ void main() {
         // Mock the result polling - return bytes immediately
         when(mockClient.get(
           Uri.parse(
-              'https://api.stability.ai/v2alpha/generation/stable-image/upscale/result/$expectedId'),
+              'https://api.stability.ai/v2beta/stable-image/upscale/creative/result/$expectedId'),
           headers: anyNamed('headers'),
         )).thenAnswer((_) async => http.Response.bytes(
               expectedResultBytes,
@@ -877,6 +877,112 @@ void main() {
         expect(result, isA<UpscaleResultBytes>());
         final response = result as UpscaleResultBytes;
         expect(response.bytes, expectedResultBytes);
+      });
+    });
+
+    group('getCreativeUpscaleResult', () {
+      test('returns in-progress response when status is 202', () async {
+        final expectedId = 'test-generation-id';
+
+        when(mockClient.get(
+          Uri.parse(
+              'https://api.stability.ai/v2beta/stable-image/upscale/creative/result/$expectedId'),
+          headers: anyNamed('headers'),
+        )).thenAnswer((_) async => http.Response(
+              jsonEncode({
+                'id': expectedId,
+                'status': 'in-progress',
+              }),
+              202,
+            ));
+
+        final result = await client.getCreativeUpscaleResult(id: expectedId);
+
+        expect(result, isA<UpscaleInProgressResponse>());
+        final response = result as UpscaleInProgressResponse;
+        expect(response.id, expectedId);
+        expect(response.status, 'in-progress');
+      });
+
+      test('returns raw bytes when returnJson is false', () async {
+        final expectedId = 'test-generation-id';
+        final expectedBytes = Uint8List.fromList([1, 2, 3]);
+
+        when(mockClient.get(
+          Uri.parse(
+              'https://api.stability.ai/v2beta/stable-image/upscale/creative/result/$expectedId'),
+          headers: anyNamed('headers'),
+        )).thenAnswer((_) async => http.Response.bytes(
+              expectedBytes,
+              200,
+              headers: {'content-type': 'image/png'},
+            ));
+
+        final result = await client.getCreativeUpscaleResult(id: expectedId);
+
+        expect(result, isA<UpscaleResultBytes>());
+        final response = result as UpscaleResultBytes;
+        expect(response.bytes, expectedBytes);
+      });
+
+      test('returns JSON response when returnJson is true', () async {
+        final expectedId = 'test-generation-id';
+        final expectedBase64 = base64.encode([1, 2, 3]);
+
+        when(mockClient.get(
+          Uri.parse(
+              'https://api.stability.ai/v2beta/stable-image/upscale/creative/result/$expectedId'),
+          headers: anyNamed('headers'),
+        )).thenAnswer((_) async => http.Response(
+              jsonEncode({
+                'image': expectedBase64,
+                'finish_reason': 'SUCCESS',
+                'seed': 123,
+              }),
+              200,
+            ));
+
+        final result = await client.getCreativeUpscaleResult(
+          id: expectedId,
+          returnJson: true,
+        );
+
+        expect(result, isA<UpscaleResultResponse>());
+        final response = result as UpscaleResultResponse;
+        expect(response.image, expectedBase64);
+        expect(response.finishReason, FinishReason.success);
+        expect(response.seed, 123);
+      });
+
+      test('throws exception with error details on error response', () async {
+        final expectedId = 'test-generation-id';
+
+        when(mockClient.get(
+          Uri.parse(
+              'https://api.stability.ai/v2beta/stable-image/upscale/creative/result/$expectedId'),
+          headers: anyNamed('headers'),
+        )).thenAnswer((_) async => http.Response(
+              jsonEncode({
+                'id': 'error-id',
+                'name': 'generation_not_found',
+                'errors': ['Generation not found or expired'],
+              }),
+              404,
+            ));
+
+        expect(
+          () => client.getCreativeUpscaleResult(id: expectedId),
+          throwsA(
+            allOf(
+              isA<StabilityAiException>(),
+              predicate((StabilityAiException e) =>
+                  e.statusCode == 404 &&
+                  e.message == 'Generation not found or expired' &&
+                  e.id == 'error-id' &&
+                  e.name == 'generation_not_found'),
+            ),
+          ),
+        );
       });
     });
   });

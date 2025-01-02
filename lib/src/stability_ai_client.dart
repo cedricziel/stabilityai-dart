@@ -538,45 +538,86 @@ class StabilityAiClient {
     }
   }
 
-  /// Upscales an image using the conservative upscaler and waits for the result.
-  ///
-  /// This is a convenience method that combines [upscaleImageConservative] and [getUpscaleResult]
-  /// into a single call. It handles polling for the result internally.
-  ///
-  /// The [request] must include:
-  /// - An image file between 64x64 and 1 megapixel in size
-  /// - A prompt describing what you wish to see in the output image
-  ///
-  /// Optional parameters in the request:
-  /// - [negativePrompt]: Keywords of what you do not wish to see
-  /// - [outputFormat]: Desired format of the output image (jpeg, png, or webp)
-  /// - [seed]: Specific value to guide the randomness (0-4294967294)
-  /// - [creativity]: Controls how creative the model should be (0-0.35)
+  /// Fetches the result of a creative upscale generation by ID.
   ///
   /// Returns either an [UpscaleResultResponse] containing the base64 encoded image and metadata
   /// when [returnJson] is true, or [UpscaleResultBytes] containing the raw image data when
   /// [returnJson] is false.
   ///
+  /// If the generation is still in progress (status code 202), returns an [UpscaleInProgressResponse].
+  ///
+  /// Make sure to use the same API key to fetch the generation result that you used to create
+  /// the generation, otherwise you will receive a 404 response.
+  ///
+  /// Results are stored for 24 hours after generation. After that, the results are deleted.
+  ///
   /// Example:
   /// ```dart
-  /// final request = UpscaleRequest(
-  ///   image: imageBytes,
-  ///   prompt: 'A high resolution landscape photo',
-  ///   outputFormat: OutputFormat.png,
-  /// );
-  /// final result = await client.upscaleImageConservativeAndWaitForResult(
-  ///   request: request,
-  ///   returnJson: false,
-  /// );
-  /// if (result is UpscaleResultBytes) {
-  ///   await File('upscaled.png').writeAsBytes(result.bytes);
+  /// // First, upscale an image
+  /// final upscaleResponse = await client.upscaleImageCreative(request: request);
+  ///
+  /// // Then, poll for the result
+  /// while (true) {
+  ///   final result = await client.getCreativeUpscaleResult(
+  ///     id: upscaleResponse.id,
+  ///     returnJson: false,
+  ///   );
+  ///
+  ///   if (result is UpscaleInProgressResponse) {
+  ///     // Still processing, wait and try again
+  ///     await Future.delayed(Duration(seconds: 10));
+  ///     continue;
+  ///   }
+  ///
+  ///   // Generation complete
+  ///   if (result is UpscaleResultBytes) {
+  ///     // Handle raw bytes
+  ///     await File('upscaled.png').writeAsBytes(result.bytes);
+  ///   } else if (result is UpscaleResultResponse) {
+  ///     // Handle JSON response
+  ///     print('Finish reason: ${result.finishReason}');
+  ///     final bytes = base64.decode(result.image);
+  ///     await File('upscaled.png').writeAsBytes(bytes);
+  ///   }
+  ///   break;
   /// }
   /// ```
-  ///
-  /// Note: This endpoint has a flat rate of 25 credits per generation.
+  Future<Object> getCreativeUpscaleResult({
+    required String id,
+    bool returnJson = false,
+  }) async {
+    final response = await _httpClient.get(
+      Uri.parse('$baseUrl/v2beta/stable-image/upscale/creative/result/$id'),
+      headers: {
+        'Authorization': 'Bearer $apiKey',
+        'Accept': returnJson ? 'application/json' : 'image/*',
+      },
+    );
+
+    if (response.statusCode == 202) {
+      return UpscaleInProgressResponse.fromJson(json.decode(response.body));
+    }
+
+    _checkResponse(response);
+
+    if (returnJson) {
+      return UpscaleResultResponse.fromJson(json.decode(response.body));
+    } else {
+      return UpscaleResultBytes(response.bodyBytes);
+    }
+  }
+
+  Future<UltraImageResult> upscaleImageConservativeAndWaitForResult({
+    required UpscaleRequest request,
+    bool returnJson = false,
+    Duration pollInterval = const Duration(seconds: 10),
+  }) async {
+    return upscaleImageConservative(request: request, returnJson: returnJson);
+  }
+
   /// Upscales an image using the creative upscaler and waits for the result.
   ///
-  /// This is a convenience method that combines [upscaleImageCreative] and [getUpscaleResult]
+  /// This is a convenience method that combines [upscaleImageCreative] and [getCreativeUpscaleResult]
   /// into a single call. It handles polling for the result internally.
   ///
   /// Takes images between 64x64 and 1 megapixel and upscales them all the way to 4K resolution.
@@ -624,7 +665,7 @@ class StabilityAiClient {
     final response = await upscaleImageCreative(request: request);
 
     while (true) {
-      final result = await getUpscaleResult(
+      final result = await getCreativeUpscaleResult(
         id: response.id,
         returnJson: returnJson,
       );
@@ -636,14 +677,6 @@ class StabilityAiClient {
 
       return result as UpscaleResult;
     }
-  }
-
-  Future<UltraImageResult> upscaleImageConservativeAndWaitForResult({
-    required UpscaleRequest request,
-    bool returnJson = false,
-    Duration pollInterval = const Duration(seconds: 10),
-  }) async {
-    return upscaleImageConservative(request: request, returnJson: returnJson);
   }
 
   void close() {

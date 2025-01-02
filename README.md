@@ -249,6 +249,31 @@ if (result is UpscaleResultBytes) {
 // Or start the upscale and handle polling manually
 final response = await client.upscaleImageCreative(request: request);
 print('Generation ID: ${response.id}');
+
+// Poll for the result
+while (true) {
+  final result = await client.getCreativeUpscaleResult(
+    id: response.id,
+    returnJson: false,
+  );
+
+  if (result is UpscaleInProgressResponse) {
+    // Still processing, wait before trying again
+    await Future.delayed(Duration(seconds: 10));
+    continue;
+  }
+
+  // Generation complete
+  if (result is UpscaleResultBytes) {
+    await File('upscaled.png').writeAsBytes(result.bytes);
+    break;
+  } else if (result is UpscaleResultResponse) {
+    print('Finish reason: ${result.finishReason}');
+    final bytes = base64.decode(result.image);
+    await File('upscaled.png').writeAsBytes(bytes);
+    break;
+  }
+}
 ```
 
 #### Conservative Upscaler
