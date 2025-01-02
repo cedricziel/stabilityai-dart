@@ -52,13 +52,28 @@ dependencies:
 
 ### Initialize the client
 
+The library uses an interface-based architecture with a factory pattern for creating clients. This allows for better testing and flexibility:
+
 ```dart
 import 'package:stability_ai_dart/stability_ai_dart.dart';
 
-final client = StabilityAiClient(
+// Create a client using the factory
+final client = StabilityAiFactory.create(
   apiKey: 'your-api-key-here',
+  // Optional: customize base URL or HTTP client
+  // baseUrl: 'https://api.stability.ai',
+  // httpClient: customHttpClient,
 );
+
+// The client implements StabilityAiInterface, which defines
+// all available operations for interacting with the API
 ```
+
+The interface-based design provides several benefits:
+- Clear contract for all supported operations
+- Easier testing through mock implementations
+- Flexibility to swap implementations
+- Better dependency injection support
 
 ### List available engines
 

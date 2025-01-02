@@ -10,13 +10,13 @@ import 'package:mockito/annotations.dart';
 import 'stability_ai_dart_test.mocks.dart';
 
 void main() {
-  group('StabilityAiClient', () {
+  group('StabilityAiInterface', () {
     late MockClient mockClient;
-    late StabilityAiClient client;
+    late StabilityAiInterface client;
 
     setUp(() {
       mockClient = MockClient();
-      client = StabilityAiClient(
+      client = StabilityAiFactory.create(
         apiKey: 'test-api-key',
         httpClient: mockClient,
       );

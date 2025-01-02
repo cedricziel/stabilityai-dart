@@ -4,9 +4,11 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'models/models.dart';
 
-/// A client for interacting with the Stability AI REST API.
+import 'stability_ai_interface.dart';
+
+/// Implementation of [StabilityAiInterface] for interacting with the Stability AI REST API.
 ///
-/// This client provides access to Stability AI's image generation and manipulation APIs:
+/// This implementation provides access to Stability AI's image generation and manipulation APIs:
 ///
 /// Text-to-Image Generation:
 /// ```dart
@@ -53,7 +55,7 @@ import 'models/models.dart';
 /// - File uploads for image-based operations
 ///
 /// Remember to call [close] when you're done with the client to free up resources.
-class StabilityAiClient {
+class StabilityAiClientImpl implements StabilityAiInterface {
   final String apiKey;
   final String baseUrl;
   final http.Client _httpClient;
@@ -62,7 +64,7 @@ class StabilityAiClient {
   ///
   /// [apiKey] is required for authentication.
   /// [baseUrl] defaults to the production API endpoint.
-  StabilityAiClient({
+  StabilityAiClientImpl({
     required this.apiKey,
     this.baseUrl = 'https://api.stability.ai',
     http.Client? httpClient,
