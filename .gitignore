@@ -5,8 +5,8 @@ build/
 pubspec.lock
 
 # Generated files
-*.g.dart
-*.freezed.dart
+#*.g.dart
+#*.freezed.dart
 
 # IntelliJ related
 *.iml
@@ -24,3 +24,6 @@ pubspec.lock
 
 # Conventional directory for build outputs
 coverage/
+
+# Mockito generated files
+*.mocks.dart
