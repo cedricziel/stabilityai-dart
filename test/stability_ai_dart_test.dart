@@ -187,5 +187,100 @@ void main() {
         );
       });
     });
+
+    group('removeBackground', () {
+      test('returns binary data when returnJson is false', () async {
+        final expectedBytes = Uint8List.fromList([1, 2, 3]);
+        final imageBytes = Uint8List.fromList([4, 5, 6]);
+
+        when(mockClient.send(any)).thenAnswer((_) async {
+          return http.StreamedResponse(
+            Stream.value(expectedBytes),
+            200,
+            headers: {'content-type': 'image/png'},
+          );
+        });
+
+        final request = RemoveBackgroundRequest(image: imageBytes);
+        final response = await client.removeBackground(request: request);
+
+        expect(response, isA<UltraImageBytes>());
+        expect((response as UltraImageBytes).bytes, expectedBytes);
+
+        final captured = verify(mockClient.send(captureAny)).captured.single
+            as http.MultipartRequest;
+        expect(captured.files.length, 1);
+        expect(captured.files.first.field, 'image');
+      });
+
+      test('returns RemoveBackgroundResponse when returnJson is true', () async {
+        final expectedBase64 = base64.encode([1, 2, 3]);
+        final imageBytes = Uint8List.fromList([4, 5, 6]);
+
+        when(mockClient.send(any)).thenAnswer((_) async {
+          return http.StreamedResponse(
+            Stream.value(utf8.encode(jsonEncode({
+              'image': expectedBase64,
+              'finish_reason': 'SUCCESS',
+              'seed': 123,
+            }))),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        });
+
+        final request = RemoveBackgroundRequest(
+          image: imageBytes,
+          outputFormat: OutputFormat.png,
+        );
+        final response = await client.removeBackground(
+          request: request,
+          returnJson: true,
+        );
+
+        expect(response, isA<RemoveBackgroundResponse>());
+        final jsonResponse = response as RemoveBackgroundResponse;
+        expect(jsonResponse.image, expectedBase64);
+        expect(jsonResponse.finishReason, FinishReason.success);
+        expect(jsonResponse.seed, 123);
+
+        final captured = verify(mockClient.send(captureAny)).captured.single
+            as http.MultipartRequest;
+        expect(captured.fields['output_format'], 'png');
+      });
+
+      test('throws exception with error details on error response', () async {
+        final imageBytes = Uint8List.fromList([1, 2, 3]);
+
+        when(mockClient.send(any)).thenAnswer((_) async {
+          final response = http.StreamedResponse(
+            Stream.value(utf8.encode(jsonEncode({
+              'id': 'error-id',
+              'name': 'bad_request',
+              'errors': ['Invalid image format', 'Image too large'],
+            }))),
+            400,
+            headers: {'content-type': 'application/json'},
+          );
+          return response;
+        });
+
+        final request = RemoveBackgroundRequest(image: imageBytes);
+
+        expect(
+          () => client.removeBackground(request: request),
+          throwsA(
+            allOf(
+              isA<StabilityAiException>(),
+              predicate((StabilityAiException e) =>
+                  e.statusCode == 400 &&
+                  e.message == 'Invalid image format, Image too large' &&
+                  e.id == 'error-id' &&
+                  e.name == 'bad_request'),
+            ),
+          ),
+        );
+      });
+    });
   });
 }

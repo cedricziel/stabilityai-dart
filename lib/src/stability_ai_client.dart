@@ -109,6 +109,48 @@ class StabilityAiClient {
     }
   }
 
+  /// Removes the background from an image.
+  ///
+  /// Returns either a [RemoveBackgroundResponse] containing the base64 encoded image and metadata
+  /// when [returnJson] is true, or [UltraImageBytes] containing the raw image data when
+  /// [returnJson] is false.
+  Future<UltraImageResult> removeBackground({
+    required RemoveBackgroundRequest request,
+    bool returnJson = false,
+  }) async {
+    final uri = Uri.parse('$baseUrl/v2beta/stable-image/edit/remove-background');
+    final multipart = http.MultipartRequest('POST', uri);
+
+    // Add headers
+    multipart.headers.addAll(_ultraHeaders(returnJson: returnJson));
+
+    // Add image file
+    final imageFile = http.MultipartFile.fromBytes(
+      'image',
+      request.image,
+      filename: 'image',
+      contentType: MediaType('image', '*'),
+    );
+    multipart.files.add(imageFile);
+
+    // Add optional output format
+    if (request.outputFormat != null) {
+      multipart.fields['output_format'] =
+          request.outputFormat.toString().split('.').last;
+    }
+
+    final streamedResponse = await _httpClient.send(multipart);
+    final response = await http.Response.fromStream(streamedResponse);
+
+    _checkResponse(response);
+
+    if (returnJson) {
+      return RemoveBackgroundResponse.fromJson(json.decode(response.body));
+    } else {
+      return UltraImageBytes(response.bodyBytes);
+    }
+  }
+
   /// Closes the client and frees up resources.
   void close() {
     _httpClient.close();

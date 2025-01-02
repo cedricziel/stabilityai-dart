@@ -107,6 +107,53 @@ enum OutputFormat {
   webp,
 }
 
+/// Request parameters for the remove background API.
+@JsonSerializable()
+class RemoveBackgroundRequest {
+  /// The image whose background you wish to remove.
+  @JsonKey(fromJson: _uint8ListFromJson, toJson: _uint8ListToJson)
+  final Uint8List image;
+
+  static Uint8List _uint8ListFromJson(String json) => base64.decode(json);
+  static String _uint8ListToJson(Uint8List bytes) => base64.encode(bytes);
+
+  /// The format of the output image.
+  final OutputFormat? outputFormat;
+
+  RemoveBackgroundRequest({
+    required this.image,
+    this.outputFormat,
+  });
+
+  factory RemoveBackgroundRequest.fromJson(Map<String, dynamic> json) =>
+      _$RemoveBackgroundRequestFromJson(json);
+  Map<String, dynamic> toJson() => _$RemoveBackgroundRequestToJson(this);
+}
+
+/// Response from the remove background API when JSON output is requested.
+@JsonSerializable()
+class RemoveBackgroundResponse implements UltraImageResult {
+  /// The generated image, encoded to base64.
+  final String image;
+
+  /// The reason the generation finished.
+  @JsonKey(name: 'finish_reason')
+  final FinishReason finishReason;
+
+  /// The seed used as random noise for this generation.
+  final int? seed;
+
+  RemoveBackgroundResponse({
+    required this.image,
+    required this.finishReason,
+    this.seed,
+  });
+
+  factory RemoveBackgroundResponse.fromJson(Map<String, dynamic> json) =>
+      _$RemoveBackgroundResponseFromJson(json);
+  Map<String, dynamic> toJson() => _$RemoveBackgroundResponseToJson(this);
+}
+
 /// Response from the Stable Image Ultra API when JSON output is requested.
 @JsonSerializable()
 class UltraImageResponse implements UltraImageResult {
