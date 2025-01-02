@@ -175,6 +175,10 @@ if (jsonResult is RemoveBackgroundResponse) {
 
 ### Upscale Images
 
+There are two ways to upscale images: using the convenience method or manual polling.
+
+#### Using the Convenience Method
+
 ```dart
 final request = UpscaleRequest(
   image: imageBytes, // Uint8List of image (64x64 to 1 megapixel)
@@ -185,13 +189,63 @@ final request = UpscaleRequest(
   creativity: 0.3, // optional: control creative enhancement (0.0 to 0.35)
 );
 
-final response = await client.upscaleImage(request: request);
+// Upscale and wait for result in one call
+final result = await client.upscaleImageAndWaitForResult(
+  request: request,
+  returnJson: false, // true for JSON response with metadata
+  pollInterval: Duration(seconds: 10), // optional: customize polling interval
+);
 
-// The response contains a generation ID that can be used to fetch the result
+if (result is UpscaleResultBytes) {
+  // Handle raw bytes
+  await File('upscaled.png').writeAsBytes(result.bytes);
+} else if (result is UpscaleResultResponse) {
+  // Handle JSON response
+  print('Finish reason: ${result.finishReason}');
+  final bytes = base64.decode(result.image);
+  await File('upscaled.png').writeAsBytes(bytes);
+}
+```
+
+#### Manual Polling
+
+For more control over the polling process, you can use the separate methods:
+
+```dart
+final request = UpscaleRequest(
+  image: imageBytes,
+  prompt: 'A high resolution landscape photo',
+  outputFormat: OutputFormat.png,
+);
+
+// Start the upscale
+final response = await client.upscaleImage(request: request);
 print('Generation ID: ${response.id}');
 
-// Use this ID to fetch the result from the upscale/result/{id} endpoint
-// Note: Rate-limiting may occur if polling more than once every 10 seconds
+// Poll for the result
+while (true) {
+  final result = await client.getUpscaleResult(
+    id: response.id,
+    returnJson: false,
+  );
+
+  if (result is UpscaleInProgressResponse) {
+    // Still processing, wait before trying again
+    await Future.delayed(Duration(seconds: 10));
+    continue;
+  }
+
+  // Generation complete
+  if (result is UpscaleResultBytes) {
+    await File('upscaled.png').writeAsBytes(result.bytes);
+    break;
+  } else if (result is UpscaleResultResponse) {
+    print('Finish reason: ${result.finishReason}');
+    final bytes = base64.decode(result.image);
+    await File('upscaled.png').writeAsBytes(bytes);
+    break;
+  }
+}
 ```
 
 ### Error Handling

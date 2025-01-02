@@ -274,6 +274,133 @@ class StabilityAiClient {
     return UpscaleResponse.fromJson(json.decode(response.body));
   }
 
+  /// Fetches the result of an upscale generation by ID.
+  ///
+  /// Returns either an [UpscaleResultResponse] containing the base64 encoded image and metadata
+  /// when [returnJson] is true, or [UpscaleResultBytes] containing the raw image data when
+  /// [returnJson] is false.
+  ///
+  /// If the generation is still in progress (status code 202), returns an [UpscaleInProgressResponse].
+  ///
+  /// Make sure to use the same API key to fetch the generation result that you used to create
+  /// the generation, otherwise you will receive a 404 response.
+  ///
+  /// Results are stored for 24 hours after generation. After that, the results are deleted.
+  ///
+  /// Example:
+  /// ```dart
+  /// // First, upscale an image
+  /// final upscaleResponse = await client.upscaleImage(request: request);
+  ///
+  /// // Then, poll for the result
+  /// while (true) {
+  ///   final result = await client.getUpscaleResult(
+  ///     id: upscaleResponse.id,
+  ///     returnJson: false,
+  ///   );
+  ///
+  ///   if (result is UpscaleInProgressResponse) {
+  ///     // Still processing, wait and try again
+  ///     await Future.delayed(Duration(seconds: 10));
+  ///     continue;
+  ///   }
+  ///
+  ///   // Generation complete
+  ///   if (result is UpscaleResultBytes) {
+  ///     // Handle raw bytes
+  ///     await File('upscaled.png').writeAsBytes(result.bytes);
+  ///   } else if (result is UpscaleResultResponse) {
+  ///     // Handle JSON response
+  ///     print('Finish reason: ${result.finishReason}');
+  ///     final bytes = base64.decode(result.image);
+  ///     await File('upscaled.png').writeAsBytes(bytes);
+  ///   }
+  ///   break;
+  /// }
+  /// ```
+  Future<Object> getUpscaleResult({
+    required String id,
+    bool returnJson = false,
+  }) async {
+    final response = await _httpClient.get(
+      Uri.parse('$baseUrl/v2alpha/generation/stable-image/upscale/result/$id'),
+      headers: {
+        'Authorization': 'Bearer $apiKey',
+        'Accept': returnJson ? 'application/json' : 'image/*',
+      },
+    );
+
+    if (response.statusCode == 202) {
+      return UpscaleInProgressResponse.fromJson(json.decode(response.body));
+    }
+
+    _checkResponse(response);
+
+    if (returnJson) {
+      return UpscaleResultResponse.fromJson(json.decode(response.body));
+    } else {
+      return UpscaleResultBytes(response.bodyBytes);
+    }
+  }
+
+  /// Upscales an image and waits for the result.
+  ///
+  /// This is a convenience method that combines [upscaleImage] and [getUpscaleResult]
+  /// into a single call. It handles polling for the result internally.
+  ///
+  /// The [request] must include:
+  /// - An image file between 64x64 and 1 megapixel in size
+  /// - A prompt describing what you wish to see in the output image
+  ///
+  /// Optional parameters in the request:
+  /// - [negativePrompt]: Keywords of what you do not wish to see
+  /// - [outputFormat]: Desired format of the output image (jpeg, png, or webp)
+  /// - [seed]: Specific value to guide the randomness (0-4294967294)
+  /// - [creativity]: Controls how creative the model should be (0-0.35)
+  ///
+  /// Returns either an [UpscaleResultResponse] containing the base64 encoded image and metadata
+  /// when [returnJson] is true, or [UpscaleResultBytes] containing the raw image data when
+  /// [returnJson] is false.
+  ///
+  /// Example:
+  /// ```dart
+  /// final request = UpscaleRequest(
+  ///   image: imageBytes,
+  ///   prompt: 'A high resolution landscape photo',
+  ///   outputFormat: OutputFormat.png,
+  /// );
+  /// final result = await client.upscaleImageAndWaitForResult(
+  ///   request: request,
+  ///   returnJson: false,
+  /// );
+  /// if (result is UpscaleResultBytes) {
+  ///   await File('upscaled.png').writeAsBytes(result.bytes);
+  /// }
+  /// ```
+  ///
+  /// Note: This endpoint has a flat rate of 25 cents per generation.
+  Future<UpscaleResult> upscaleImageAndWaitForResult({
+    required UpscaleRequest request,
+    bool returnJson = false,
+    Duration pollInterval = const Duration(seconds: 10),
+  }) async {
+    final response = await upscaleImage(request: request);
+
+    while (true) {
+      final result = await getUpscaleResult(
+        id: response.id,
+        returnJson: returnJson,
+      );
+
+      if (result is UpscaleInProgressResponse) {
+        await Future.delayed(pollInterval);
+        continue;
+      }
+
+      return result as UpscaleResult;
+    }
+  }
+
   void close() {
     _httpClient.close();
   }

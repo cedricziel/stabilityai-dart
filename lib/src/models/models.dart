@@ -414,3 +414,57 @@ class UpscaleResponse {
       _$UpscaleResponseFromJson(json);
   Map<String, dynamic> toJson() => _$UpscaleResponseToJson(this);
 }
+
+/// Response from the upscale result API when the generation is still in progress.
+@JsonSerializable()
+class UpscaleInProgressResponse {
+  /// The unique identifier for this generation.
+  final String id;
+
+  /// The status of the generation.
+  final String status;
+
+  UpscaleInProgressResponse({
+    required this.id,
+    required this.status,
+  });
+
+  factory UpscaleInProgressResponse.fromJson(Map<String, dynamic> json) =>
+      _$UpscaleInProgressResponseFromJson(json);
+  Map<String, dynamic> toJson() => _$UpscaleInProgressResponseToJson(this);
+}
+
+/// Response from the upscale result API.
+/// Can either contain raw bytes ([UpscaleResultBytes]) or a JSON response ([UpscaleResultResponse]).
+sealed class UpscaleResult {}
+
+/// Raw bytes response from the upscale result API.
+class UpscaleResultBytes implements UpscaleResult {
+  final Uint8List bytes;
+
+  UpscaleResultBytes(this.bytes);
+}
+
+/// JSON response from the upscale result API.
+@JsonSerializable()
+class UpscaleResultResponse implements UpscaleResult {
+  /// The generated image, encoded to base64.
+  final String image;
+
+  /// The reason the generation finished.
+  @JsonKey(name: 'finish_reason')
+  final FinishReason finishReason;
+
+  /// The seed used as random noise for this generation.
+  final int? seed;
+
+  UpscaleResultResponse({
+    required this.image,
+    required this.finishReason,
+    this.seed,
+  });
+
+  factory UpscaleResultResponse.fromJson(Map<String, dynamic> json) =>
+      _$UpscaleResultResponseFromJson(json);
+  Map<String, dynamic> toJson() => _$UpscaleResultResponseToJson(this);
+}
