@@ -213,7 +213,8 @@ void main() {
         expect(captured.files.first.field, 'image');
       });
 
-      test('returns RemoveBackgroundResponse when returnJson is true', () async {
+      test('returns RemoveBackgroundResponse when returnJson is true',
+          () async {
         final expectedBase64 = base64.encode([1, 2, 3]);
         final imageBytes = Uint8List.fromList([4, 5, 6]);
 

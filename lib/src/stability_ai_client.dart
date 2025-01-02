@@ -166,7 +166,8 @@ class StabilityAiClient {
     required RemoveBackgroundRequest request,
     bool returnJson = false,
   }) async {
-    final uri = Uri.parse('$baseUrl/v2beta/stable-image/edit/remove-background');
+    final uri =
+        Uri.parse('$baseUrl/v2beta/stable-image/edit/remove-background');
     final multipart = http.MultipartRequest('POST', uri);
 
     // Add headers
