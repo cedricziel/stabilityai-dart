@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.3](https://github.com/cedricziel/stabilityai-dart/compare/v1.0.2...v1.0.3) (2025-01-21)
+
+
+### Bug Fixes
+
+* send correct aspectratio ([0f4dbf9](https://github.com/cedricziel/stabilityai-dart/commit/0f4dbf991f55eb4ec264cbd53416f2150753da4a))
+
 ## [1.0.2](https://github.com/cedricziel/stabilityai-dart/compare/v1.0.1...v1.0.2) (2025-01-02)
 
 
