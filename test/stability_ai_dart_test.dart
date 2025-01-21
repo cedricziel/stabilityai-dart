@@ -148,7 +148,7 @@ void main() {
             as http.MultipartRequest;
         expect(captured.fields['prompt'], 'test prompt');
         expect(captured.fields['negative_prompt'], 'test negative');
-        expect(captured.fields['aspect_ratio'], 'ratio16x9');
+        expect(captured.fields['aspect_ratio'], '16:9');
         expect(captured.fields['seed'], '123');
         expect(captured.fields['output_format'], 'png');
         expect(captured.fields['strength'], '0.5');
@@ -623,6 +623,29 @@ void main() {
         );
       });
 
+      test('serializes aspect ratio correctly', () async {
+        final request = CoreImageRequest(
+          prompt: 'test prompt',
+          aspectRatio: AspectRatio.ratio5x4,
+        );
+
+        when(mockClient.send(any)).thenAnswer((_) async {
+          return http.StreamedResponse(
+            Stream.value(utf8.encode(jsonEncode({
+              'image': 'test-base64',
+              'finish_reason': 'SUCCESS',
+            }))),
+            200,
+          );
+        });
+
+        await client.generateCoreImage(request: request);
+
+        final captured = verify(mockClient.send(captureAny)).captured.single
+            as http.MultipartRequest;
+        expect(captured.fields['aspect_ratio'], '5:4');
+      });
+
       test('uses correct endpoint URL', () async {
         final imageBytes = Uint8List.fromList([1, 2, 3]);
         final request = UpscaleRequest(
@@ -1063,7 +1086,7 @@ void main() {
             as http.MultipartRequest;
         expect(captured.fields['prompt'], 'test prompt');
         expect(captured.fields['negative_prompt'], 'test negative');
-        expect(captured.fields['aspect_ratio'], 'ratio16x9');
+        expect(captured.fields['aspect_ratio'], '16:9');
         expect(captured.fields['seed'], '123');
         expect(captured.fields['output_format'], 'png');
         expect(captured.fields['style_preset'], 'photographic');
@@ -1329,7 +1352,7 @@ void main() {
         expect(captured.fields['negative_prompt'], 'test negative');
         expect(captured.fields['mode'], 'image-to-image');
         expect(captured.fields['strength'], '0.5');
-        expect(captured.fields['aspect_ratio'], 'ratio16x9');
+        expect(captured.fields['aspect_ratio'], '16:9');
         expect(captured.fields['model'], 'sd3.5-large');
         expect(captured.fields['seed'], '123');
         expect(captured.fields['output_format'], 'png');

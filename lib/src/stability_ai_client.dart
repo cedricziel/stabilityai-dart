@@ -139,8 +139,18 @@ class StabilityAiClientImpl implements StabilityAiInterface {
       multipart.fields['negative_prompt'] = request.negativePrompt!;
     }
     if (request.aspectRatio != null) {
-      multipart.fields['aspect_ratio'] =
-          request.aspectRatio.toString().split('.').last;
+      final aspectRatioJson = {
+        AspectRatio.ratio16x9: '16:9',
+        AspectRatio.ratio1x1: '1:1',
+        AspectRatio.ratio21x9: '21:9',
+        AspectRatio.ratio2x3: '2:3',
+        AspectRatio.ratio3x2: '3:2',
+        AspectRatio.ratio4x5: '4:5',
+        AspectRatio.ratio5x4: '5:4',
+        AspectRatio.ratio9x16: '9:16',
+        AspectRatio.ratio9x21: '9:21',
+      };
+      multipart.fields['aspect_ratio'] = aspectRatioJson[request.aspectRatio]!;
     }
     if (request.seed != null) {
       multipart.fields['seed'] = request.seed.toString();
@@ -191,8 +201,18 @@ class StabilityAiClientImpl implements StabilityAiInterface {
       multipart.fields['negative_prompt'] = request.negativePrompt!;
     }
     if (request.aspectRatio != null) {
-      multipart.fields['aspect_ratio'] =
-          request.aspectRatio.toString().split('.').last;
+      final aspectRatioJson = {
+        AspectRatio.ratio16x9: '16:9',
+        AspectRatio.ratio1x1: '1:1',
+        AspectRatio.ratio21x9: '21:9',
+        AspectRatio.ratio2x3: '2:3',
+        AspectRatio.ratio3x2: '3:2',
+        AspectRatio.ratio4x5: '4:5',
+        AspectRatio.ratio5x4: '5:4',
+        AspectRatio.ratio9x16: '9:16',
+        AspectRatio.ratio9x21: '9:21',
+      };
+      multipart.fields['aspect_ratio'] = aspectRatioJson[request.aspectRatio]!;
     }
     if (request.seed != null) {
       multipart.fields['seed'] = request.seed.toString();
@@ -735,8 +755,18 @@ class StabilityAiClientImpl implements StabilityAiInterface {
       multipart.fields['mode'] = request.mode!;
     }
     if (request.aspectRatio != null) {
-      multipart.fields['aspect_ratio'] =
-          request.aspectRatio.toString().split('.').last;
+      final aspectRatioJson = {
+        AspectRatio.ratio16x9: '16:9',
+        AspectRatio.ratio1x1: '1:1',
+        AspectRatio.ratio21x9: '21:9',
+        AspectRatio.ratio2x3: '2:3',
+        AspectRatio.ratio3x2: '3:2',
+        AspectRatio.ratio4x5: '4:5',
+        AspectRatio.ratio5x4: '5:4',
+        AspectRatio.ratio9x16: '9:16',
+        AspectRatio.ratio9x21: '9:21',
+      };
+      multipart.fields['aspect_ratio'] = aspectRatioJson[request.aspectRatio]!;
     }
     if (request.model != null) {
       // Convert enum value to API string format
